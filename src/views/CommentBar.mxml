@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		creationComplete="creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			private var originalArray:Array;
+			private var queueArray:Array = [];
+			
+			private var loadFromQueueTimer:Timer;
+			private var lastCommentLoadedTime:Number;
+			
+			
+			//this gets called if you do commentBar.originalDataSet = something
+			public function set originalDataSet(dataSet:Array):void
+			{
+				//I think the JSON object ends up being just an array itself either way we'll assume you pass in an array
+				originalArray = dataSet;
+			}
+			
+			public function trackChanged():void
+			{
+				queueArray = [];
+				originalArray = [];
+			}
+			
+			public function set currentTime(value:Number):void
+			{
+				if(originalArray)
+				{
+					for(var i:int = 0; i<originalArray.length;i++)
+					{
+						trace("Checking comment with timestamp: "+ originalArray[i].timestamp);
+						trace("Value provided: "+ value); // huh k wasn't expecting htat really you think their time values have extra precision? ms is pretty high precision
+						if(originalArray[i].timestamp < value)
+						{
+							queueArray.push(originalArray[i]); 
+							originalArray.splice(i,1);
+						}
+					}
+				}
+			}
+			
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				loadFromQueueTimer = new Timer(1000);
+				loadFromQueueTimer.addEventListener(TimerEvent.TIMER, loadFromQueueHandler);
+				loadFromQueueTimer.start();
+			}
+			
+			private function loadFromQueueHandler(event:TimerEvent):void
+			{
+				var lastCommentTimeInPast:Number;
+				
+				//The first comment hasn't been shown by this thing yet
+				if(!isNaN(lastCommentLoadedTime))
+					lastCommentTimeInPast = new Date().time - lastCommentLoadedTime;
+				
+				//this if checks if there's an array and it has stuff to show and the time in teh past is more than a second since the last comment was shown
+				if(queueArray && queueArray.length > 0 && (isNaN(lastCommentTimeInPast)|| lastCommentTimeInPast > 1000))
+				{
+					var nextComment:Object = queueArray.shift();
+					commentString = nextComment.body;
+					lastCommentLoadedTime = new Date().time;
+				}
+				//this one however should fire when the array is empty and either there's no value for the lastCommentTimeInPast because or the time is more than 2 seconds in the past
+				if(queueArray && queueArray.length==0 && (isNaN(lastCommentTimeInPast)||lastCommentTimeInPast>2000))
+					commentString = "";
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<fx:String id="commentString"/>
+	</fx:Declarations>
+	
+	<s:Rect width="100%" height="100%">
+		<s:fill>
+			<s:SolidColor color="0x252525"/>
+		</s:fill>
+	</s:Rect>
+	<s:HGroup width="100%" paddingRight="10">
+		<s:BitmapImage width="20" height="20"/>
+		<s:Label text="User -" color="white" fontWeight="bold"/>
+		<s:Label text="{commentString}" color="white"/>
+		
+		<s:Spacer width="100%"/>
+		
+		<s:Button width="20" height="20" label="+"/>
+	</s:HGroup>
+</s:Group>

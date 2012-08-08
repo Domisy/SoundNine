@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:IconItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					iconField="thumb" iconHeight="64" iconWidth="64" labelField="title">
+	<fx:Script>
+		<![CDATA[
+			override protected function layoutContents(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.layoutContents(unscaledWidth,unscaledHeight);
+			}
+			
+			override public function set selected(value:Boolean):void
+			{
+				super.selected = value; 
+				if(value) {
+					labelDisplay.setStyle("color",0xFFFFFF);
+				}
+				else {
+					labelDisplay.setStyle("color",0x000000);
+				}
+			}
+			
+			override protected function drawBackground(unscaledWidth:Number, 
+											  unscaledHeight:Number):void
+			{
+				// figure out backgroundColor
+				var backgroundColor:*;
+				var downColor:* = getStyle("downColor");
+				var drawBackground:Boolean = true;
+				var opaqueBackgroundColor:* = undefined;
+				
+				if (down && downColor !== undefined)
+				{
+					backgroundColor = downColor;
+				}	
+				else if (selected)
+				{
+					backgroundColor = 0xFF7D02;
+				}
+				else if (hovered)
+				{
+					backgroundColor = getStyle("rollOverColor");
+				}
+				else if (showsCaret)
+				{
+					backgroundColor = getStyle("selectionColor");
+				}
+				else
+				{
+					var alternatingColors:Array;
+					var alternatingColorsStyle:Object = getStyle("alternatingItemColors");
+					
+					if (alternatingColorsStyle)
+						alternatingColors = (alternatingColorsStyle is Array) ? (alternatingColorsStyle as Array) : [alternatingColorsStyle];
+					
+					if (alternatingColors && alternatingColors.length > 0)
+					{
+						// translate these colors into uints
+						styleManager.getColorNames(alternatingColors);
+						
+						backgroundColor = alternatingColors[itemIndex % alternatingColors.length];
+					}
+					else
+					{
+						// don't draw background if it is the contentBackgroundColor. The
+						// list skin handles the background drawing for us. 
+						drawBackground = false;
+					}
+					
+				} 
+				
+				// draw backgroundColor
+				// the reason why we draw it in the case of drawBackground == 0 is for
+				// mouse hit testing purposes
+				graphics.beginFill(backgroundColor, drawBackground ? 1 : 0);
+				graphics.lineStyle();
+				graphics.drawRect(0, 0, unscaledWidth, unscaledHeight);
+				graphics.endFill();
+				
+				// Selected and down states have a gradient overlay as well
+				// as different separators colors/alphas
+				if (selected || down)
+				{
+					var colors:Array = [0x000000, 0x000000 ];
+					var alphas:Array = [.2, .1];
+					var ratios:Array = [0, 255];
+					var matrix:Matrix = new Matrix();
+					
+					// gradient overlay
+					matrix.createGradientBox(unscaledWidth, unscaledHeight, Math.PI / 2, 0, 0 );
+					graphics.beginGradientFill(GradientType.LINEAR, colors, alphas, ratios, matrix);
+					graphics.drawRect(0, 0, unscaledWidth, unscaledHeight);
+					graphics.endFill();
+				}
+				else if (drawBackground)
+				{
+					// If our background is a solid color, use it as the opaqueBackground property
+					// for this renderer. This makes scrolling considerably faster.
+					opaqueBackgroundColor = backgroundColor;
+				}
+				
+				// Draw the separator for the item renderer
+				drawBorder(unscaledWidth, unscaledHeight);
+				
+				opaqueBackground = opaqueBackgroundColor;
+			}
+		]]>
+	</fx:Script>
+</s:IconItemRenderer>

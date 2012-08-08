@@ -1,0 +1,235 @@
+
+<model xmlns="http://ns.adobe.com/Fiber/1.0">
+  <annotation name="ActionScriptGeneration">
+    <item name="FullyQualifyReferences">true</item>
+  </annotation>
+  <service name="SoundcloudAPI">
+    <annotation name="ActionScriptGeneration">
+      <item name="ServiceType">HTTPMultiService</item>
+      <item name="Package">services.soundcloudapi</item>
+      <item name="rootURL"></item>
+    </annotation>
+    <annotation name="ServiceTypeGroup">
+      <item name="ServiceBackendType">HTTPService</item>
+    </annotation>
+    <annotation name="ServiceConfig">
+      <item name="DEFAULT_ENTITY_PACKAGE">valueObjects</item>
+      <item name="LINKED_FILE"></item>
+    </annotation>
+    <function name="getTracks" return-type="GetTrackResponse[]">
+      <annotation name="analyze group">
+        <item name="analyzed">true</item>
+      </annotation>
+      <annotation name="ActionScriptGeneration">
+        <item name="SerializationFilter">com.adobe.serializers.json.JSONSerializationFilter</item>
+        <item name="method">GET</item>
+        <item name="url">https://api.soundcloud.com/me/activities/tracks{filter}.json</item>
+      </annotation>
+      <annotation name="url group">
+        <item name="completeURL">https://api.soundcloud.com/me/activities/tracks{filter}.json</item>
+      </annotation>
+      <annotation name="ValidProperties">
+        <item name="propertySpecifier">genre,track_type,isrc,release_day,release_year,state,favoritings_count,download_count,artwork_url,kind,downloadable,id,title,sharing,label_name,video_url,description,streamable,created_at,permalink_url,user_id,original_format,original_content_size,license,commentable,attachments_uri,comment_count,purchase_url,playback_count,stream_url,label_id,uri,key_signature,bpm,duration,permalink,tag_list,release_month,purchase_title,user,waveform_url,release</item>
+      </annotation>
+      <annotation name="original signature">
+        <item name="returnType">opaque</item>
+        <item name="inputParamNames">filter,client_id,oauth_token,order</item>
+        <item name="inputParams">string,string,string,string</item>
+      </annotation>
+      <annotation name="Properties">
+        <item name="urlParamNames">filter</item>
+      </annotation>
+      <parameter name="filter" type="string"/>
+      <parameter name="client_id" type="string"/>
+      <parameter name="oauth_token" type="string"/>
+      <parameter name="order" type="string"/>
+    </function>
+    <function name="Operation1" return-type="NoName1[]">
+      <annotation name="analyze group">
+        <item name="analyzed">true</item>
+      </annotation>
+      <annotation name="ActionScriptGeneration">
+        <item name="SerializationFilter">com.adobe.serializers.json.JSONSerializationFilter</item>
+        <item name="method">GET</item>
+        <item name="url">https://api.soundcloud.com/tracks.json</item>
+      </annotation>
+      <annotation name="url group">
+        <item name="completeURL">https://api.soundcloud.com/tracks.json</item>
+      </annotation>
+      <annotation name="ValidProperties">
+        <item name="propertySpecifier">genre,track_type,isrc,release_day,release_year,state,favoritings_count,download_count,artwork_url,kind,downloadable,id,title,sharing,label_name,video_url,download_url,description,streamable,created_at,permalink_url,user_id,original_format,original_content_size,license,commentable,attachments_uri,comment_count,purchase_url,playback_count,stream_url,label_id,uri,key_signature,bpm,duration,permalink,tag_list,release_month,purchase_title,user,waveform_url,release</item>
+      </annotation>
+      <annotation name="original signature">
+        <item name="returnType">opaque</item>
+        <item name="inputParamNames">client_id</item>
+        <item name="inputParams">string</item>
+      </annotation>
+      <parameter name="client_id" type="string"/>
+    </function>
+    <function name="followUser" return-type="opaque">
+      <annotation name="analyze group">
+        <item name="analyzed">false</item>
+      </annotation>
+      <annotation name="ActionScriptGeneration">
+        <item name="method">POST</item>
+        <item name="contentType">application/x-www-form-urlencoded</item>
+        <item name="requestBodyParameter">false</item>
+        <item name="url">https://api.soundcloud.com/me/following/{userID}.json</item>
+      </annotation>
+      <annotation name="url group">
+        <item name="completeURL">https://api.soundcloud.com/me/following/{userID}.json</item>
+      </annotation>
+      <annotation name="original signature">
+        <item name="returnType">opaque</item>
+        <item name="inputParamNames">userID,oauth_token,client_id</item>
+        <item name="inputParams">string,string,string</item>
+      </annotation>
+      <annotation name="Properties">
+        <item name="urlParamNames">userID</item>
+      </annotation>
+      <parameter name="userID" type="string"/>
+      <parameter name="oauth_token" type="string"/>
+      <parameter name="client_id" type="string"/>
+    </function>
+  </service>
+  <entity name="User">
+    <annotation name="EntityProperties">
+      <item name="EntityOriginalName">User</item>
+    </annotation>
+    <annotation name="service Group">
+      <item name="service">SoundcloudAPI</item>
+    </annotation>
+    <annotation name="ServerProperties">
+      <item name="IncludeRemoteClass">nonempty</item>
+    </annotation>
+    <annotation name="ActionScriptGeneration">
+      <item name="Package">valueObjects</item>
+    </annotation>
+    <property name="id" type="integer" required="true"/>
+    <property name="avatar_url" type="string" required="true"/>
+    <property name="username" type="string" required="true"/>
+    <property name="permalink" type="string" required="true"/>
+    <property name="permalink_url" type="string" required="true"/>
+    <property name="uri" type="string" required="true"/>
+    <property name="kind" type="string" required="true"/>
+  </entity>
+  <entity name="GetTrackResponse">
+    <annotation name="EntityProperties">
+      <item name="EntityOriginalName">GetTrackResponse</item>
+    </annotation>
+    <annotation name="service Group">
+      <item name="service">SoundcloudAPI,SoundcloudAPIDummy</item>
+    </annotation>
+    <annotation name="ServerProperties">
+      <item name="IncludeRemoteClass">nonempty</item>
+    </annotation>
+    <annotation name="getTracks">
+      <item name="propertySpecifier">genre,track_type,isrc,release_day,release_year,state,favoritings_count,download_count,artwork_url,kind,downloadable,id,title,sharing,label_name,video_url,description,streamable,created_at,permalink_url,user_id,original_format,original_content_size,license,commentable,attachments_uri,comment_count,purchase_url,playback_count,stream_url,label_id,uri,key_signature,bpm,duration,permalink,tag_list,release_month,purchase_title,user,waveform_url,release</item>
+    </annotation>
+    <annotation name="ActionScriptGeneration">
+      <item name="Package">valueObjects</item>
+    </annotation>
+    <property name="genre" type="string" required="true"/>
+    <property name="track_type" type="string" required="true"/>
+    <property name="isrc" type="string" required="true"/>
+    <property name="release_day" type="opaque" required="true"/>
+    <property name="release_year" type="opaque" required="true"/>
+    <property name="state" type="string" required="true"/>
+    <property name="favoritings_count" type="integer" required="true"/>
+    <property name="download_count" type="integer" required="true"/>
+    <property name="artwork_url" type="string" required="true"/>
+    <property name="kind" type="string" required="true"/>
+    <property name="downloadable" type="boolean" required="true"/>
+    <property name="id" type="integer" required="true"/>
+    <property name="title" type="string" required="true"/>
+    <property name="sharing" type="string" required="true"/>
+    <property name="label_name" type="string" required="true"/>
+    <property name="video_url" type="opaque" required="true"/>
+    <property name="description" type="string" required="true"/>
+    <property name="streamable" type="boolean" required="true"/>
+    <property name="created_at" type="string" required="true"/>
+    <property name="permalink_url" type="string" required="true"/>
+    <property name="user_id" type="integer" required="true"/>
+    <property name="original_format" type="string" required="true"/>
+    <property name="original_content_size" type="integer" required="true"/>
+    <property name="license" type="string" required="true"/>
+    <property name="commentable" type="boolean" required="true"/>
+    <property name="attachments_uri" type="string" required="true"/>
+    <property name="comment_count" type="integer" required="true"/>
+    <property name="purchase_url" type="opaque" required="true"/>
+    <property name="playback_count" type="integer" required="true"/>
+    <property name="stream_url" type="string" required="true"/>
+    <property name="label_id" type="opaque" required="true"/>
+    <property name="uri" type="string" required="true"/>
+    <property name="key_signature" type="string" required="true"/>
+    <property name="bpm" type="opaque" required="true"/>
+    <property name="duration" type="integer" required="true"/>
+    <property name="permalink" type="string" required="true"/>
+    <property name="tag_list" type="string" required="true"/>
+    <property name="release_month" type="opaque" required="true"/>
+    <property name="purchase_title" type="opaque" required="true"/>
+    <property name="user" type="User" required="true"/>
+    <property name="waveform_url" type="string" required="true"/>
+    <property name="release" type="string" required="true"/>
+  </entity>
+  <entity name="NoName1">
+    <annotation name="EntityProperties">
+      <item name="EntityOriginalName">NoName1</item>
+    </annotation>
+    <annotation name="service Group">
+      <item name="service">SoundcloudAPI</item>
+    </annotation>
+    <annotation name="ServerProperties">
+      <item name="IncludeRemoteClass">nonempty</item>
+    </annotation>
+    <annotation name="Operation1">
+      <item name="propertySpecifier">genre,track_type,isrc,release_day,release_year,state,favoritings_count,download_count,artwork_url,kind,downloadable,id,title,sharing,label_name,video_url,download_url,description,streamable,created_at,permalink_url,user_id,original_format,original_content_size,license,commentable,attachments_uri,comment_count,purchase_url,playback_count,stream_url,label_id,uri,key_signature,bpm,duration,permalink,tag_list,release_month,purchase_title,user,waveform_url,release</item>
+    </annotation>
+    <annotation name="ActionScriptGeneration">
+      <item name="Package">valueObjects</item>
+    </annotation>
+    <property name="genre" type="string" required="true"/>
+    <property name="track_type" type="string" required="true"/>
+    <property name="isrc" type="string" required="true"/>
+    <property name="release_day" type="opaque" required="true"/>
+    <property name="release_year" type="opaque" required="true"/>
+    <property name="state" type="string" required="true"/>
+    <property name="favoritings_count" type="integer" required="true"/>
+    <property name="download_count" type="integer" required="true"/>
+    <property name="artwork_url" type="opaque" required="true"/>
+    <property name="kind" type="string" required="true"/>
+    <property name="downloadable" type="boolean" required="true"/>
+    <property name="id" type="integer" required="true"/>
+    <property name="title" type="string" required="true"/>
+    <property name="sharing" type="string" required="true"/>
+    <property name="label_name" type="string" required="true"/>
+    <property name="video_url" type="opaque" required="true"/>
+    <property name="download_url" type="string" required="true"/>
+    <property name="description" type="string" required="true"/>
+    <property name="streamable" type="boolean" required="true"/>
+    <property name="created_at" type="string" required="true"/>
+    <property name="permalink_url" type="string" required="true"/>
+    <property name="user_id" type="integer" required="true"/>
+    <property name="original_format" type="string" required="true"/>
+    <property name="original_content_size" type="integer" required="true"/>
+    <property name="license" type="string" required="true"/>
+    <property name="commentable" type="boolean" required="true"/>
+    <property name="attachments_uri" type="string" required="true"/>
+    <property name="comment_count" type="integer" required="true"/>
+    <property name="purchase_url" type="opaque" required="true"/>
+    <property name="playback_count" type="integer" required="true"/>
+    <property name="stream_url" type="string" required="true"/>
+    <property name="label_id" type="opaque" required="true"/>
+    <property name="uri" type="string" required="true"/>
+    <property name="key_signature" type="string" required="true"/>
+    <property name="bpm" type="opaque" required="true"/>
+    <property name="duration" type="integer" required="true"/>
+    <property name="permalink" type="string" required="true"/>
+    <property name="tag_list" type="string" required="true"/>
+    <property name="release_month" type="opaque" required="true"/>
+    <property name="purchase_title" type="opaque" required="true"/>
+    <property name="user" type="User" required="true"/>
+    <property name="waveform_url" type="string" required="true"/>
+    <property name="release" type="string" required="true"/>
+  </entity>
+</model>

@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		xmlns:utils="utils.*"
+		actionBarVisible="true" backgroundColor="#F0F0F0"
+		initialize="initializeHandler(event)" tabBarVisible="false" title="SoundFeed"
+		viewActivate="view1_viewActivateHandler(event)">
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import flashx.textLayout.tlf_internal;
+			
+			import model.SoundModel;
+			import model.valueObjects.AudioDataWrapper;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import qnx.fuse.ui.buttons.SegmentedControl;
+			import qnx.fuse.ui.display.Image;
+			import qnx.ui.data.DataProvider;
+			
+			import renderers.ProfileDetailsRenderer;
+			
+			import spark.components.ActionBar;
+			import spark.events.IndexChangeEvent;
+			import spark.events.ViewNavigatorEvent;
+			
+			import valueObjects.Item;
+			
+			
+			
+			private var segData:Array= [
+				{label:"New"},
+				{label:"Hot"},
+				{label:"All"}];
+			[Bindable] private var dp:DataProvider = new DataProvider(segData);
+			
+			private var theJsonResponse : Object;
+			[Bindable] private var myListDP : ArrayCollection;
+			private var waveSelectionWidth : Number = 0;
+			[Bindable] public var waveformUrl:String = "";
+			private var modelInstance : SoundModel;
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			private var segIndex:int;
+			[Bindable] public var busyBool:Boolean = false;
+			[Bindable] private var filter:String = ""; 
+			public var params:Object;
+			private var isFilter:Boolean;
+			[Bindable] private var abButtonVis:Boolean = true;
+			
+			override public function set data(value : Object) : void
+			{
+				super.data = value;
+				modelInstance = value as SoundModel;
+				modelInstance.soundFeed = this;
+			}
+			
+			public function busyOff(event:ResultEvent):void
+			{
+				busyBool = false;
+				removeEventListener(ResultEvent.RESULT, busyOff);
+			}
+			
+			public function busyOn():void
+			{
+				busyBool = true;
+			}
+			
+			protected function list_creationCompleteHandler(event:Event):void {
+				//feedList.addEventListener(MouseEvent.CLICK, waveSelectionChanged_handler);
+			}
+			
+			protected function waveSelectionChanged_handler(event:IndexChangeEvent):void
+			{
+				dispatchEvent(new Event("ItemSelected", true, false)); 
+				if (feedList.dataProvider.getItemAt(event.newIndex).origin) {
+					modelInstance.currentlySelectedItem = feedList.dataProvider.getItemAt(event.newIndex).origin;
+					modelInstance.currentlySelectedItem.index = event.newIndex;
+				}
+				else {
+					modelInstance.currentlySelectedItem = feedList.dataProvider.getItemAt(event.newIndex);
+					modelInstance.currentlySelectedItem.index = event.newIndex;
+				}
+			}
+			
+			protected function httpservice1_resultHandler(event : ResultEvent) : void
+			{
+				feedList.visible = true;
+				errorMessage.visible = false;
+				
+				//feedList.addEventListener(ItemClickEvent.ITEM_CLICK, getTrackInfo);
+				theJsonResponse = JSON.parse(event.result as String);
+				var tempCollection:ArrayCollection;
+				
+				if (isFilter == false)
+				{
+					tempCollection = new ArrayCollection(theJsonResponse.collection);
+				}
+				else
+				{
+					tempCollection = new ArrayCollection();
+					for(var prop:String in theJsonResponse)
+					{
+						tempCollection.addItem(theJsonResponse[prop]);
+						//tempCollection.addItem(new AudioDataWrapper(theJsonResponse[prop]));
+					}
+				}
+				//k cool
+				myListDP = tempCollection;
+				
+				if (feedList.dataProvider.length !=0) {
+					feedList.selectedIndex = 0;
+					
+					if (feedList.dataProvider.getItemAt(0).origin != null)
+						modelInstance.currentlySelectedItem = feedList.dataProvider.getItemAt(0).origin;
+					else
+						modelInstance.currentlySelectedItem = feedList.dataProvider.getItemAt(0);
+					
+					for (var i:int=0;i<myListDP.length;i++)
+					{
+						var iterant:Object = feedList.dataProvider.getItemAt(i);
+						if (iterant.origin != null)
+							iterant.origin.index = i;
+						else 
+							iterant.index = i;
+					}
+					
+					modelInstance.dpLength = feedList.dataProvider.length; //right here. So after every time this result handler is reached, the dpLenght is updated..
+					modelInstance.currentListDP = myListDP;
+				}
+				else {
+					feedList.visible = false;
+					errorMessage.visible = true;
+				}
+			}
+			
+			
+		
+			
+			public function initializeHandler(event:FlexEvent):void
+			{
+				busyOn();
+				modelInstance.isStream = true;
+				getTrackResults.addEventListener(ResultEvent.RESULT, busyOff);
+				params = {client_id:"0101d8067d39865dc8ce5b0a04b01f24", oauth_token:modelInstance.userToken};
+				getTrackResults.send(params);	
+				CONFIG::device {
+					abButtonVis = false;
+				}
+			}
+			
+			protected function requestTracks(dashboard:Boolean, param:String):void {
+				busyOn();
+				modelInstance.isStream = true;
+				getTrackResults.addEventListener(ResultEvent.RESULT, busyOff);
+				params = {client_id:"0101d8067d39865dc8ce5b0a04b01f24", oauth_token:modelInstance.userToken, order:param};
+				if (dashboard == true) {
+					getTrackResults.url = "https://api.soundcloud.com/me/activities/tracks.json";
+				}
+				else getTrackResults.url = "https://api.soundcloud.com/tracks.json";
+				getTrackResults.send(params);
+				
+			}
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				//temporary actionbar visibility toggler
+				if (modelInstance.abVisible == true) {
+					modelInstance.abVisible = false;
+				}
+				else modelInstance.abVisible = true;
+			}
+			
+			//yah just a couple more tips, you can select multiple lines and tab o rshift tab you can als ctrl+shift+f for quick format.
+			
+			protected function feedSelect(whichButt:int):void
+			{
+				switch(whichButt)
+				{
+					case 0: {
+						isFilter= true;
+						requestTracks(false, "created_at");
+						break;
+					}
+					case 1: {
+						isFilter = false;
+						requestTracks(true, "");
+						break;
+					}
+					case 2: {
+						isFilter = true;
+						requestTracks(false, "hotness");
+					}
+				}
+			}
+			
+			protected function view1_viewActivateHandler(event:ViewNavigatorEvent):void
+			{
+				modelInstance.currentlyActiveView = "SoundFeed";
+				modelInstance.homeView.shrink.play(); 
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:HTTPService id="getTrackResults" method="GET" result="httpservice1_resultHandler(event)"
+					   url="https://api.soundcloud.com/me/activities/tracks.json"/>
+		<s:RadioButtonGroup id="radiogroup1"/>
+	</fx:Declarations>
+	<s:titleContent>
+		<s:Button visible="{abButtonVis}" label="ActionBar" click="button1_clickHandler(event)"/>
+		<s:Spacer width="90" height="1"/>
+		<s:Group>
+			<s:Rect width="100%" height="100%" radiusX="3">
+				<s:stroke>
+					<s:SolidColorStroke color="0xBDBDBD"/>
+				</s:stroke>
+				<s:fill>
+					<s:SolidColor color="0xFFFFFF"/>
+				</s:fill>
+			</s:Rect>
+			<s:HGroup>
+				<s:RadioButton width="64" height="35" label="Latest" click="feedSelect(0)"
+							   groupName="radiogroup1" horizontalCenter="0"
+							   skinClass="skins.RadioGroupSkin"/>
+				<s:RadioButton width="55" height="35" label="Feed" click="feedSelect(1)"
+							   groupName="radiogroup1" horizontalCenter="0" selected="true"
+							   skinClass="skins.RadioGroupSkin"/>
+				<s:RadioButton width="55" height="35" label="Hot" click="feedSelect(2)"
+							   groupName="radiogroup1" horizontalCenter="0"
+							   skinClass="skins.RadioGroupSkin"/>
+			</s:HGroup>
+		</s:Group>
+	</s:titleContent>
+	
+	
+	<s:List id="feedList" left="0" right="0" top="0" bottom="0"
+			change="waveSelectionChanged_handler(event)" dataProvider="{myListDP}"
+			itemRenderer="renderers.BaseListRendererSimple" selectionColor="0xFF8D00">
+	</s:List>
+	<s:Label id="errorMessage" visible="false" width="400" textAlign="center" horizontalCenter="0" verticalCenter="0" text="You have nothing in your feed. Start looking for artists to follow in the 'hot' and 'latest' categories." fontSize="20"/>
+	
+	<s:Rect width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient>
+				<s:GradientEntry alpha="0" color="0x000000" ratio=".9"/>
+				<s:GradientEntry alpha=".1" color="0x000000" ratio=".95"/>
+				<s:GradientEntry alpha=".4" color="0x000000" ratio="1"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:BusyIndicator id="throbber" visible="{busyBool}" width="60" height="60" horizontalCenter="0"
+					 verticalCenter="-6"/>	
+</s:View>

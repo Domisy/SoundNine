@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ViewNavigatorApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+							xmlns:s="library://ns.adobe.com/flex/spark"  xmlns:mx="library://ns.adobe.com/flex/mx" 
+							firstView="views.Login" applicationDPI="160" xmlns:debugger="com.demonsters.debugger.*">
+	<fx:Declarations>
+		<debugger:MonsterDebuggerFlex id="monsterDebugger"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			import model.SoundModel;
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			import mx.events.FlexEvent;
+			
+			import views.*;
+			
+			private var modelInstance : SoundModel;
+			[Bindable] private var firstViewClass:Class;
+			
+			protected function viewnavigatorapplication1_initializeHandler(event:FlexEvent):void
+			{
+				if (soundModel.loggedIn == true) {
+					firstView = views.SoundCloudHomeView;
+				}
+				else  firstView = views.Login;	
+			}
+			
+		]]>
+	</fx:Script>
+</s:ViewNavigatorApplication>

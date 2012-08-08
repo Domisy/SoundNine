@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" initialize="view1_initializeHandler(event)"
+		xmlns:s="library://ns.adobe.com/flex/spark" viewActivate="view1_viewActivateHandler(event)"
+		actionBarVisible="true" backgroundColor="#F0F0F0" tabBarVisible="true" title="SearchView">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.DPIClassification;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.ViewNavigatorEvent;
+			private var theJsonResponse : Object;
+			[Bindable] private var myListDP : ArrayCollection;
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			[Bindable] public var busyBool:Boolean = false;
+			[Bindable] private var abButtonVis:Boolean = true;
+			
+			protected function waveSelectionChanged_handler(event:IndexChangeEvent):void
+			{
+				dispatchEvent(new Event("ItemSelected", true, false)); 
+				soundModel.currentlySelectedItem = searchList.dataProvider.getItemAt(event.newIndex);
+			}
+			
+			public function busyOff(event:ResultEvent):void
+			{
+				busyBool = false;
+			}
+			
+			public function busyOn():void
+			{
+				busyBool = true;
+			}
+			
+			protected function sendRequest(event:Event):void {
+				busyOn();
+				soundModel.isStream = false;
+				getTrackSearch.addEventListener(ResultEvent.RESULT, busyOff);
+				var params:Object = {client_id:"0101d8067d39865dc8ce5b0a04b01f24", oauth_token:soundModel.userToken, q:searchQuery.text};/*   order:"hotness"*/
+				getTrackSearch.send(params);
+			}
+			
+			protected function httpservice1_resultHandler(event:ResultEvent) : void
+			{
+				searchList.visible = true;
+				errorMessage.visible = false;
+				//feedList.addEventListener(ItemClickEvent.ITEM_CLICK, getTrackInfo);
+				theJsonResponse = JSON.parse(event.result as String);
+				var tempCollection:ArrayCollection = new ArrayCollection();
+				for(var prop:String in theJsonResponse) {
+					tempCollection.addItem(theJsonResponse[prop]);
+					//tempCollection.addItem(new AudioDataWrapper(theJsonResponse[prop]));
+				}
+				myListDP = tempCollection;
+				
+				if (searchList.dataProvider.length != 0) {
+					searchList.selectedIndex = 0;
+				
+					soundModel.currentlySelectedItem = searchList.dataProvider.getItemAt(0);
+				
+					for (var i:int=0;i<myListDP.length;i++)
+					{
+						var iterant:Object = searchList.dataProvider.getItemAt(i);
+						if (iterant.origin != null)
+							iterant.origin.index = i;
+						else 
+							iterant.index = i;
+					}
+					
+					soundModel.dpLength = searchList.dataProvider.length;
+					soundModel.currentListDP = myListDP;
+				}
+				else {
+					searchList.visible = false;
+					errorMessage.visible = true;
+				}
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				//temporary actionbar visibility toggler
+				if (soundModel.abVisible == true) {
+					soundModel.abVisible = false;
+				}
+				else soundModel.abVisible = true;
+			}
+			
+			protected function view1_viewActivateHandler(event:ViewNavigatorEvent):void
+			{
+				soundModel.currentlyActiveView = "SearchView";
+				soundModel.currentlyActiveView = "SoundFeed";
+				soundModel.homeView.shrink.play(); 
+			}
+			
+			protected function view1_initializeHandler(event:FlexEvent):void
+			{
+				searchQuery.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+				CONFIG::device {
+					abButtonVis = false;
+				}
+			}
+			
+			private function onKeyDown(e:KeyboardEvent):void
+			{
+				if (e.keyCode == Keyboard.ENTER)
+				{
+					busyOn();
+					hideKeyboard();
+					//getRedditSearchResult.token = redditFeedGrabber.getRedditSearch(qTextInput.text);
+					//getRedditSearchResult.addEventListener(ResultEvent.RESULT,busyOff);
+				}
+			}
+			
+			private function hideKeyboard():void
+			{
+				//IMFConnection.imfConnection.hideInput();
+				stage.focus = null;
+			}
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<s:HTTPService id="getTrackSearch"
+					   result="httpservice1_resultHandler(event)"
+					   method="GET"
+					   url="https://api.soundcloud.com/tracks.json"/>
+	</fx:Declarations>
+	<s:titleContent>
+		<s:Spacer width="0" height="10"/>
+		<s:TextInput id="searchQuery" right="497" width="500" enter="sendRequest(event)"
+					 prompt="Search Soundcloud..."/> 
+	</s:titleContent>
+	<s:navigationContent>
+		<s:Button width="35" label="AB" click="button1_clickHandler(event)" visible="{abButtonVis}"/>
+	</s:navigationContent>
+	<s:Group x="0" y="0" width="600" height="100%">
+		<s:List id="searchList" x="0" y="0" width="100%" height="100%"
+				dataProvider="{myListDP}" change="waveSelectionChanged_handler(event)"
+				itemRenderer="renderers.BaseListRendererSimple" selectionColor="0xFF8D00">
+		</s:List>
+		<s:Label id="errorMessage" visible="false" horizontalCenter="0" verticalCenter="0" text="Either check your spelling, or give up. Nothing was found." fontSize="20"/>
+	</s:Group> 
+	
+	<s:Rect width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient>
+				<s:GradientEntry color="0x000000" ratio=".9" alpha="0"/>
+				<s:GradientEntry color="0x000000" ratio=".95" alpha=".1"/>
+				<s:GradientEntry color="0x000000" ratio="1" alpha=".4"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:BusyIndicator id="throbber" horizontalCenter="0" verticalCenter="-6" width="60" height="60" visible="{busyBool}"/>	
+</s:View>

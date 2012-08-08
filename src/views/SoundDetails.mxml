@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark" initialize="view1_initializeHandler(event)"
+		actionBarVisible="false" tabBarVisible="false" title="SoundDetails">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.ViewNavigatorEvent;
+			
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			private var modelInstance : SoundModel;
+			private var smallArtwork:String;
+			[Bindable] private var largeArtwork:String;
+			[Bindable] private var userID:String;
+			[Bindable] private var track_id:String;
+			[Bindable] private var followLabel:String = "Follow";
+			private var isPlaying:Boolean = false;
+			[Bindable] public var busyBool:Boolean = true;
+			
+			//private var bypassDispatch:Boolean = false;
+			
+			override public function set data(value : Object) : void
+			{
+				super.data = value;
+				modelInstance = value as SoundModel;
+				modelInstance.soundDetails = this;
+			}
+			
+			public function busyOff():void
+			{
+				busyBool = false;
+			}
+			
+			public function busyOn():void
+			{
+				busyBool = true;
+			}
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (isPlaying == false) {
+						playButton.setStyle("icon","assets/detailsPauseButton.png");
+						dispatchEvent(new Event("TrackSelected", true, false)); 
+						soundModel.mediaPlayer.progressWidth =  0;
+						
+						soundModel.bypassDispatch = true;
+						soundModel.isPlaying = true;
+						
+						soundModel.currentlyPlayingItem = soundModel.currentlySelectedItem;
+						isPlaying = true;
+				}
+				else {
+					playButton.setStyle("icon","assets/detailsPlayButton.png");
+					dispatchEvent(new Event("PauseTrackDetails", true, false)); 
+					//soundModel.isPlaying == false;
+					
+					isPlaying = false;
+				}
+				
+			}
+			
+			protected function stopTrack(event:Event):void {
+				playButton.setStyle("icon","assets/detailsPlayButton.png");
+				isPlaying = false;
+			}
+						
+			protected function view1_initializeHandler(event:FlexEvent):void
+			{
+				BindingUtils.bindSetter(calledWhenModelChanges, soundModel, "currentlySelectedItem"); 
+				BindingUtils.bindSetter(calledWhenCurrentPlayingChanges, soundModel, "currentlyPlayingItem"); 
+				BindingUtils.bindSetter(playStateChange, soundModel, "isPlaying"); 
+				//this.addEventListener("TrackStopped", stopTrack);
+			}
+			
+			public function playStateChange(value:Object):void {
+				if (soundModel.bypassDispatch == true) {
+					soundModel.bypassDispatch = false;
+				}
+				else {
+					if (soundModel.currentlyPlayingItem && soundModel.currentlySelectedItem.id == soundModel.currentlyPlayingItem.id) {
+						if (value == true) {
+							isPlaying = true; //local isPlaying
+							playButton.setStyle("icon","assets/detailsPauseButton.png");
+						}
+						else {
+							isPlaying = false;
+							playButton.setStyle("icon","assets/detailsPlayButton.png");
+						}	
+					}
+					else { //in this case just change the variable.
+						if (value == true) {
+							isPlaying = true; //local isPlaying
+						}
+						else {
+							isPlaying = false;
+						}
+					}
+				}
+			}
+			
+			public function calledWhenModelChanges(value:Object):void
+			{
+				if (soundModel.currentlySelectedItem) {
+					busyOff();
+					infoGroup.visible = true;
+					if (soundModel.currentlyPlayingItem && soundModel.currentlySelectedItem.id == soundModel.currentlyPlayingItem.id) {
+						playButton.setStyle("icon","assets/detailsPauseButton.png");
+						isPlaying= false;
+					}
+					else {
+						playButton.setStyle("icon","assets/detailsPlayButton.png");
+						isPlaying = false;
+					}
+					
+					
+					
+					if (soundModel.currentlySelectedItem.track == null) {
+						if (soundModel.currentlySelectedItem.artwork_url == null) {
+							smallArtwork = soundModel.currentlySelectedItem.user.avatar_url;
+						}
+						else 
+							smallArtwork = soundModel.currentlySelectedItem.artwork_url;
+						
+						artistLabel.text = soundModel.currentlySelectedItem.user.username;
+						artistPic.source = soundModel.currentlySelectedItem.user.avatar_url;
+						trackTitle.text = soundModel.currentlySelectedItem.title;
+					}
+					else {
+						if (soundModel.currentlySelectedItem.track.artwork_url == null) {
+							smallArtwork = soundModel.currentlySelectedItem.track.user.avatar_url;
+						}
+						else 
+							smallArtwork = soundModel.currentlySelectedItem.track.artwork_url;
+						
+						artistLabel.text = soundModel.currentlySelectedItem.track.user.username;
+						artistPic.source = soundModel.currentlySelectedItem.track.user.avatar_url;
+						trackTitle.text = soundModel.currentlySelectedItem.track.title;
+					}
+					
+					
+	
+					if(smallArtwork) {
+						largeArtwork = smallArtwork.replace("large", "crop");
+						albumArtwork.visible = true;
+					}
+					else {
+						largeArtwork = "";
+						albumArtwork.visible = false;
+					}
+					
+					
+					
+					if (soundModel.currentlySelectedItem.track == null) {
+						userID = String(soundModel.currentlySelectedItem.user.id);
+						track_id = soundModel.currentlySelectedItem.id;
+					}
+					else {
+						userID = String(soundModel.currentlySelectedItem.track.user.id);
+						track_id = soundModel.currentlySelectedItem.track.id;
+					}
+				}
+				
+				if (userID != null) {
+					checkFollow();
+				}
+				if (track_id != null) {
+					var params:Object = {oauth_token:soundModel.userToken};		
+					getFavoriteTrack.send(params);
+				}
+			}
+			
+			public function calledWhenCurrentPlayingChanges(value:Object):void
+			{
+				if (value == null) {
+					stopTrack(null);
+				}
+			}
+			
+			public function checkFollow():void {
+				var params:Object = {oauth_token:soundModel.userToken};			
+				getFollowUser.send(params);
+			}
+			
+			
+			protected function faultSwitch(event:FaultEvent):void {
+				trace(event.fault.content);
+				if(event.fault.content == "<error>401 - Unauthorized</error>")
+				{
+					followLabel = "Following";
+					followButton.selected = true;
+				}
+				else
+				{
+					followLabel = "Follow";
+					followButton.selected = false;
+				}
+			}
+		
+			
+			protected function followButton_clickHandler(event:MouseEvent):void
+			{
+				if (followButton.selected == false) {
+					unfollow(event);
+				}
+				else {
+					follow(event);
+				}
+			}
+			
+			protected function unfollow(event:Event):void {
+				updateFollow(event); //Change the label right away to avoid the delay...
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "https://api.soundcloud.com/me/followings/" + userID + ".json";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.DELETE;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function follow(event:Event):void {
+				updateFollow(event); //Change the label right away to avoid the delay...
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "https://api.soundcloud.com/me/followings/" + userID + ".json";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.PUT;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables; 
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function updateFollow(event:Event):void {
+				if (followLabel == "Follow") {
+					followLabel = "Following";
+				}
+				else followLabel = "Follow";
+			}
+			
+			protected function likeButton_clickHandler(event:MouseEvent):void
+			{
+				if(likeButton.selected) {
+					likeButton.label = "Liked";
+					favoriteTrack(event);
+					if (soundModel.currentlySelectedItem.track == null) {
+						soundModel.mediaPlayer.likeButtonPressed(true, soundModel.currentlySelectedItem.id);
+					}
+					else 
+						soundModel.mediaPlayer.likeButtonPressed(true, soundModel.currentlySelectedItem.track.id);
+				}
+				else {
+					likeButton.label = "Like";
+					unfavoriteTrack(event);
+					if (soundModel.currentlySelectedItem.track == null) {
+						soundModel.mediaPlayer.likeButtonPressed(false, soundModel.currentlySelectedItem.id);
+					}
+					else 
+						soundModel.mediaPlayer.likeButtonPressed(false, soundModel.currentlySelectedItem.track.id);
+					//soundModel.mediaPlayer.likeButtonPressed(false, soundModel.currentlySelectedItem.id);
+				}	
+			}
+			
+			protected function favoriteTrack(event:Event):void {
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlySelectedItem.id + ".json";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.PUT;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function unfavoriteTrack(event:Event):void {
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlySelectedItem.id + ".json";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.DELETE;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function getFavoriteTrack_resultHandler(event:ResultEvent):void
+			{
+				likeButton.label = "Liked";
+				likeButton.selected = true;
+			}
+			
+			protected function faultSwitchLike(event:FaultEvent):void 
+			{
+				likeButton.label = "Like";
+				likeButton.selected = false;
+			}
+			
+			public function likeButtonPressed(isSelected:Boolean, trackId:int):void {
+				
+				if (soundModel.currentlySelectedItem.track == null) {
+					if (soundModel.currentlySelectedItem.id == trackId) {
+						if (isSelected == true) {
+							getFavoriteTrack_resultHandler(null);
+						}
+						else faultSwitchLike(null);
+					}
+				}
+				else {
+					if (soundModel.currentlySelectedItem.track.id == trackId) {
+						if (isSelected == true) {
+							getFavoriteTrack_resultHandler(null);
+						}
+						else faultSwitchLike(null);
+					}
+				}
+			}
+			
+			public function changePlayState(isPlaying:Boolean):void {
+				if (isPlaying == true) 
+					playButton.setStyle("icon","assets/detailsPauseButton.png");
+				else
+					playButton.setStyle("icon","assets/detailsPlayButton.png");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:HTTPService id="getFollowUser"
+					   method="GET"
+					   fault="faultSwitch(event)"
+					   url="https://api.soundcloud.com/me/followings/{userID}.json"/>
+		<s:HTTPService id="getFavoriteTrack"
+					   method="GET"
+					   result="getFavoriteTrack_resultHandler(event)"
+					   fault="faultSwitchLike(event)"
+					   url="https://api.soundcloud.com/me/favorites/{track_id}.json"/>
+	</fx:Declarations>
+	
+	<s:Group id="infoGroup" width="100%" height="100%" visible="false">
+			<s:Image id="albumArtwork" source="{largeArtwork}" x="4" y="176" width="415" height="423"/>
+			<s:Label id="artistLabel" x="73" y="12" width="222" height="48" fontWeight="bold" maxDisplayedLines="2"/>
+				 	<!--text="{soundModel.currentlySelectedItem.user.username}"/>
+					source="{soundModel.currentlySelectedItem.user.avatar_url}" 
+					text="{soundModel.currentlySelectedItem.title}"-->
+			<s:Image id="artistPic"  x="10" y="10" width="50" height="50"/>
+			<s:Label id="trackTitle" x="69" y="76" width="335" height="50" fontSize="20" maxDisplayedLines="2"
+					 fontWeight="bold"/>
+			<s:ToggleButton id="followButton" x="303" y="19" width="100" height="28" label="{followLabel}"
+					  click="followButton_clickHandler(event)" fontSize="17" skinClass="skins.followButtonSkin"/>
+			<s:ToggleButton id="likeButton" x="10" y="140" width="90" height="30" label="Like" 
+							click="likeButton_clickHandler(event)" skinClass="skins.likeButtonSkin"/>
+			<s:Button id="playButton" x="6" y="72" width="55" height="55"
+					  skinClass="skins.mediaControlSkin" click="button1_clickHandler(event)" icon="assets/detailsPlayButton.png"/>
+	</s:Group>
+	
+	<s:BusyIndicator id="throbber" horizontalCenter="0" verticalCenter="-10" width="60" height="60" visible="{busyBool}"/>	
+</s:View>

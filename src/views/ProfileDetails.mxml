@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		actionBarVisible="false" initialize="view1_initializeHandler(event)" tabBarVisible="false"
+		title="ProfileDetails">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import renderers.ProfileDetailsRenderer;
+			
+			import spark.events.IndexChangeEvent;
+			
+			
+			[Bindable] private var busyBool:Boolean = false;
+			private var theJsonResponse : Object;
+			[Bindable] private var myListDP : ArrayCollection;
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			public var params:Object;
+			[Bindable] private var itemRendString:String = "renderers.BaseListRendererSimple";
+			private var currentFeed:int=-1;
+			private var baseListRendererFactory:ClassFactory = new ClassFactory(renderers.BaseListRendererSimple);
+			private var profileListRendererFactory:ClassFactory = new ClassFactory(renderers.ProfileDetailsRenderer);
+			private var isPlaying:Boolean = false;
+			
+			
+			public function busyOff(event:ResultEvent):void
+			{
+				busyBool = false;
+				removeEventListener(ResultEvent.RESULT, busyOff);
+			}
+			
+			public function busyOn():void
+			{
+				busyBool = true;
+			}
+			
+			
+			protected function httpservice1_resultHandler(event : ResultEvent) : void
+			{
+				feedList.visible = true;
+				errorMessage.visible = false;
+				
+				//feedList.addEventListener(ItemClickEvent.ITEM_CLICK, getTrackInfo);
+				//yah the switch was brought in here cause o fthe renderer problems
+				//yeah remember now.. but for a while there i was reeeeealllly confused. so at this point, the forward back just need toget the dp from model
+				theJsonResponse = JSON.parse(event.result as String);
+				var tempCollection:ArrayCollection;
+				
+				/* if (isFilter == false)
+				{
+					tempCollection = new ArrayCollection(theJsonResponse.collection);
+				}
+				else
+				{ */
+					tempCollection = new ArrayCollection();
+					for(var prop:String in theJsonResponse)
+					{
+						tempCollection.addItem(theJsonResponse[prop]);
+						//tempCollection.addItem(new AudioDataWrapper(theJsonResponse[prop]));
+					}
+				//}
+					
+				myListDP = tempCollection;
+				
+				if (feedList.dataProvider.length != 0) {
+					feedList.selectedIndex = 0;
+					
+					/* if (feedList.dataProvider.getItemAt(0).origin != null)
+						soundModel.currentlySelectedItem = feedList.dataProvider.getItemAt(0).origin;
+					else
+						soundModel.currentlySelectedItem = feedList.dataProvider.getItemAt(0); */
+					
+					for (var i:int=0;i<myListDP.length;i++)
+					{
+						var iterant:Object = feedList.dataProvider.getItemAt(i);
+						if (iterant.origin != null)
+							iterant.origin.index = i;
+						else 
+							iterant.index = i;
+					}
+					
+					soundModel.dpLength = feedList.dataProvider.length;
+					soundModel.currentListDP = myListDP;
+				
+					switch(currentFeed)
+					{
+						case 0:
+							feedList.itemRenderer = baseListRendererFactory;
+							break;
+						case 1:
+							feedList.itemRenderer = baseListRendererFactory;
+							break;
+						case 2:
+							feedList.itemRenderer = profileListRendererFactory;
+							break;
+						case 3:
+							feedList.itemRenderer = profileListRendererFactory;
+							break;
+					}
+				}
+				else {
+					feedList.visible = false;
+					errorMessage.visible = true;
+				}
+				
+			}
+		
+			
+			
+			protected function requestTracks(event:Event):void {
+				busyOn();
+				soundModel.isStream = true;
+				getTrackResults.addEventListener(ResultEvent.RESULT, busyOff);
+				params = {client_id:"0101d8067d39865dc8ce5b0a04b01f24", oauth_token:soundModel.userToken};
+				getTrackResults.send(params);
+				
+			}
+			
+			
+			public function feedSelect(whichFeed:int):void
+			{
+				currentFeed = whichFeed;
+				switch(whichFeed)
+				{
+					case 0:
+						getTrackResults.url = "https://api.soundcloud.com/me/tracks.json";
+						requestTracks(null);
+						errorMessage.text = "Don't keep those shower tunes to yourself. Upload some tracks!";
+						break;
+					case 1:
+						getTrackResults.url = "https://api.soundcloud.com/me/favorites.json";
+						requestTracks(null);
+						errorMessage.text = "Do you not have feelings? You must like something...";
+						break;
+					case 2:
+						getTrackResults.url = "https://api.soundcloud.com/me/followings.json";
+						requestTracks(null);
+						errorMessage.text = "You have to be a friend before you make one. Follow some other users.";
+						break;
+					case 3: 
+						getTrackResults.url = "https://api.soundcloud.com/me/followers.json";
+						requestTracks(null);
+						errorMessage.text = "Time to start making friends? Start by uploading sounds for others to listen to.";
+						break;
+				}
+			}
+			
+			protected function view1_initializeHandler(event:FlexEvent):void
+			{
+				soundModel.profileDetails = this;
+				requestTracks(null);
+			}
+			
+			
+			protected function feedList_creationCompleteHandler(event:FlexEvent):void
+			{
+				feedList.addEventListener("ProfileObjectClicked", feedList_changeHandlerUser); 
+				feedList.addEventListener("TrackObjectClicked", feedList_changeHandlerTrack); 
+			}
+			
+			
+			protected function feedList_changeHandlerUser(event:ItemClickEvent):void
+			{ 
+				return;
+			}
+			
+			protected function feedList_changeHandlerTrack(event:ItemClickEvent):void
+			{ 
+				
+				soundModel.currentlySelectedItem = event.target.data;
+				
+				if (soundModel.currentlyPlayingItem != soundModel.currentlySelectedItem) { 
+					//show a playing indicator on the list entry
+					dispatchEvent(new Event("TrackSelected", true, false)); 
+					soundModel.mediaPlayer.progressWidth =  0;
+					
+					soundModel.bypassDispatch = true;
+					soundModel.isPlaying = true;
+					
+					soundModel.currentlyPlayingItem = soundModel.currentlySelectedItem;
+				}
+				else
+					null;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<s:HTTPService id="getTrackResults" method="GET" result="httpservice1_resultHandler(event)"
+					   url="https://api.soundcloud.com/me/tracks.json"/>
+	</fx:Declarations>
+	
+	<s:List id="feedList" width="100%" height="100%"
+			dataProvider="{myListDP}" itemRenderer="renderers.BaseListRendererSimple"
+			selectionColor="0xFF8D00" creationComplete="feedList_creationCompleteHandler(event)">	
+	</s:List>
+	<s:Label id="errorMessage" width="300" textAlign="center" visible="false" horizontalCenter="0" verticalCenter="0" text="Don't keep those shower tunes to yourself. Upload some tracks!" fontSize="20"/>
+	
+	<s:BusyIndicator id="busy" visible="{busyBool}" width="60" height="60" horizontalCenter="0"
+					 verticalCenter="-10"/>
+</s:View>

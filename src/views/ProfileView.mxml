@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		destructionPolicy="never" initialize="view1_initializeHandler(event)" title="You"
+		viewActivate="view1_viewActivateHandler(event)">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import qnx.ui.data.DataProvider;
+			
+			import skins.followButtonSkin;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.ViewNavigatorEvent;
+			import spark.managers.PersistenceManager;
+			import spark.transitions.CrossFadeViewTransition;
+			
+			import vos.ProfileViewMenuItem;
+			
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			private var userInfo : Object;
+			[Bindable] private var abButtonVis:Boolean = true;
+			[Bindable] private var myListDP : ArrayCollection = new ArrayCollection([new ProfileViewMenuItem("Your sounds","assets/tracksButtonDark.png"),
+																					new ProfileViewMenuItem("Your likes","assets/likeButtonLarge.png"),
+																					new ProfileViewMenuItem("People you follow","assets/Avatars.png"),
+																					new ProfileViewMenuItem("People who follow you","assets/Avatars.png")]);
+			public var fadeTrans:CrossFadeViewTransition = new CrossFadeViewTransition();
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				//temporary actionbar visibility toggler
+				if (soundModel.abVisible == true) {
+					soundModel.abVisible = false;
+				}
+				else soundModel.abVisible = true;
+			}
+			
+			protected function view1_viewActivateHandler(event:ViewNavigatorEvent):void
+			{
+				soundModel.homeView.enlarge.play();
+			}
+			
+			protected function view1_initializeHandler(event:FlexEvent):void
+			{
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "https://api.soundcloud.com/me.json";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.GET;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				urlLoader.addEventListener(Event.COMPLETE, profileLoad);
+				urlLoader.load(urlRequest);
+				
+				profileList.selectedIndex = 0;
+				
+				CONFIG::device {
+					abButtonVis = false;
+				}
+			}
+			
+			protected function profileLoad(event:Event):void {
+				userInfo = JSON.parse(event.target.data as String);
+				soundModel.userInfo = userInfo;
+				
+				busyInd.visible = false;
+				profileImage.source = soundModel.userInfo.avatar_url;
+				usernameLabel.text = soundModel.userInfo.username;
+				nameLabel.text = soundModel.userInfo.full_name;
+			}
+			
+			protected function logout(event:MouseEvent):void
+			{
+				soundModel.userToken = "";
+				soundModel.userInfo = null;
+				soundModel.loggedIn = false;
+				
+				var persistenceManager:PersistenceManager = new PersistenceManager();  
+				persistenceManager.clear();
+				
+				dispatchEvent(new Event("Logout", true, false)); 
+			}
+			
+			
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				soundModel.homeView.showAbout();
+			}
+			
+			protected function profileList_changeHandler(event:IndexChangeEvent):void
+			{
+				soundModel.profileDetails.feedSelect(event.newIndex);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:HTTPService id="getTrackResults" method="GET"
+					   url="https://api.soundcloud.com/me/activities/tracks.json"/>
+	</fx:Declarations>
+	<s:navigationContent>
+		<s:Button label="AB" click="button1_clickHandler(event)" visible="{abButtonVis}"/>
+	</s:navigationContent>
+	<s:actionContent>
+		<s:Button label="About" click="button2_clickHandler(event)"/>
+	</s:actionContent>
+	<s:titleContent>
+		<s:Spacer y="18" width="105" height="9"/>
+		<s:Label y="14" height="22" color="#FFFFFF" fontSize="20" fontStyle="normal"
+				 fontWeight="bold" lineThrough="false" text="You" textAlign="center"
+				 verticalAlign="middle"/>
+	</s:titleContent>
+	
+	
+	<s:List id="profileList" x="0" y="120" width="1024" height="561" dataProvider="{myListDP}"
+			itemRenderer="renderers.ProfileListRenderer" change="profileList_changeHandler(event)">
+	</s:List>
+	
+	<s:Group x="0" y="0" width="731" height="120">
+		<s:Rect width="100%" height="100%">
+			<s:fill>
+				<s:SolidColor color="0xCFCFCF"/>
+			</s:fill>
+		</s:Rect>
+		<s:Image id="profileImage" x="10" y="16" width="90" height="90" smooth="false"/>
+		<s:Label id="usernameLabel" x="119" y="22" width="271" height="25" fontWeight="bold"/>
+		<s:Label id="nameLabel" x="119" y="50" width="271" height="25"/>
+		<s:Button x="119" y="81" width="106" height="27" label="Logout" click="logout(event)"
+				  skinClass="skins.customButtonSkin"/>
+		<s:BusyIndicator id="busyInd" visible="true" x="31" y="36" width="50" height="50"/>
+	</s:Group>
+	
+	<s:Rect x="0" y="120" width="100%" height="50">
+		<s:fill>
+			<s:LinearGradient rotation="-90">
+				<s:GradientEntry alpha=".0" color="0x000000" ratio=".9"/>
+				<s:GradientEntry alpha=".1" color="0x000000" ratio=".95"/>
+				<s:GradientEntry alpha=".3" color="0x000000" ratio="1"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	
+	<s:Rect x="0" y="0" width="100%" height="555">
+		<s:fill>
+			<s:LinearGradient>
+				<s:GradientEntry alpha="0" color="0x000000" ratio=".9"/>
+				<s:GradientEntry alpha=".1" color="0x000000" ratio=".95"/>
+				<s:GradientEntry alpha=".4" color="0x000000" ratio="1"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+</s:View>

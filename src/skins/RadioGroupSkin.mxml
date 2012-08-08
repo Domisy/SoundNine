@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark">
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("spark.components.RadioButton")]
+	</fx:Metadata>
+	
+	<!-- states -->
+	<s:states>
+		<s:State name="disabledAndSelected" stateGroups="selectedUpStates, disabledStates, selectedStates"/>
+		<s:State name="downAndSelected" stateGroups="downStates, selectedStates"/>
+		<s:State name="overAndSelected" stateGroups="overStates, selectedStates"/>
+		<s:State name="upAndSelected" stateGroups="selectedStates, selectedUpStates"/>
+		<s:State name="disabled" stateGroups="disabledStates"/>
+		<s:State name="down" stateGroups="downStates"/>
+		<s:State name="over" stateGroups="overStates"/>
+		<s:State name="up" />
+	</s:states>
+	
+	
+	<!-- SkinParts
+	name=iconDisplay, type=spark.primitives.BitmapImage, required=false
+	name=labelDisplay, type=spark.core.IDisplayText, required=false
+	-->
+	
+	<fx:Script>
+		<![CDATA[
+			
+		]]>
+	</fx:Script>
+
+	
+	
+	<s:Rect id="rect2" height="100%" includeIn="selectedStates" width="100%" radiusX="3">
+		<s:fill>
+			<s:SolidColor color="0x009CEF" /> 
+		</s:fill>
+		<s:stroke>
+			<s:SolidColorStroke color="0x00399C"/>
+		</s:stroke>
+		
+	</s:Rect>
+	
+	
+	
+	<s:Rect id="highlightStroke" left="1" right="1" top="1" bottom="1" radiusX="3" excludeFrom="downStates">
+		<s:stroke>
+			<s:LinearGradientStroke rotation="90" weight="1">
+				<s:GradientEntry color="0xFFFFFF" alpha.overStates="0.22" alpha.selectedUpStates="0.33" />
+				<s:GradientEntry color="0xD8D8D8" alpha.overStates="0.22" alpha.selectedUpStates="0.33" />
+			</s:LinearGradientStroke>
+		</s:stroke>
+	</s:Rect>
+	
+	<s:Rect id="highlight" left="1" right="1" top="1" bottom="1" radiusX="3">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0xFFFFFF"
+								 ratio="0.0"
+								 alpha="0.33" 
+								 alpha.selectedUpStates="0.22"
+								 alpha.overStates="0.22" 
+								 alpha.downStates="0.12"/>
+				<s:GradientEntry color="0xFFFFFF"
+								 ratio="0.48"
+								 alpha="0.33"
+								 alpha.selectedUpStates="0.22"
+								 alpha.overStates="0.22" 
+								 alpha.downStates="0.12"/>
+				<s:GradientEntry color="0xFFFFFF"
+								 ratio="0.48001"
+								 alpha="0" />
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	
+	
+	<s:Rect id="border" left="0" right="0" top="0" bottom="0" width="69" height="20" radiusX="3" excludeFrom="up">
+		<s:stroke>
+			<s:LinearGradientStroke rotation="90" weight="1">
+				<s:GradientEntry color="0x000000" 
+								 alpha="0.5625"
+								 alpha.down="0.6375"
+								 alpha.selectedStates="0.6375" />
+				<s:GradientEntry color="0x000000" 
+								 alpha="0.75" 
+								 alpha.down="0.85"
+								 alpha.selectedStates="0.85" />
+			</s:LinearGradientStroke>
+		</s:stroke>
+	</s:Rect>
+	
+	<s:Label id="labelDisplay" color="0x636363" color.selectedStates="0xFFFFFF" 
+			 verticalAlign="middle"
+			 verticalCenter="0"
+			 horizontalCenter="0"
+			 fontSize="20"/>
+
+</s:Skin>

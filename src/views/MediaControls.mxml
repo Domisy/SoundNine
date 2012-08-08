@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 add="group2_activateHandler(event)" initialize="group2_initializeHandler(event)" xmlns:views="views.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.INavigatorContent;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.events.MoveEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import org.osmf.media.MediaPlayerState;
+			
+			import qnx.events.AudioManagerEvent;
+			import qnx.events.MediaServiceConnectionEvent;
+			import qnx.fuse.ui.slider.Slider;
+			import qnx.media.MediaServiceConnection;
+			import qnx.system.AudioManager;
+			import qnx.system.Device;
+			
+			import spark.components.supportClasses.DropDownController;
+			
+			
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			public var s:Sound;
+			[Bindable] private var playState:String = "Play";
+			[Bindable] public var newWaveform:Image =  new Image();
+			public var trackLength:int;
+			private var trackStartedTimeStamp:Date;
+			private var progressUpdateTimer:Timer = new Timer(1000);
+			public var soundChannel:SoundChannel;
+			private var percentTrackPlayed:Number;
+			private var pausePercentage:Number;
+			private var isPaused:Boolean;
+			private var isPlaying:Boolean;
+			private var trackPosition:int = 0;
+			[Bindable] private var globalVolume:Number = -1; 
+			[Bindable] private var track_id:String;
+			private var skipfirsttime:Boolean = false;
+			private var viewTracker:String;
+			[Bindable] public var progressWidth:int = 0;
+			private var mouseIsDown:Boolean = false;
+			[Bindable] private var waveSelectionWidth:int = 0;
+			private var mediaServiceConnected:Boolean = false;
+			CONFIG::device
+			private var audio:AudioManager = AudioManager.audioManager;
+			CONFIG::device
+			private var audioService:MediaServiceConnection = new MediaServiceConnection();
+			
+			
+			
+			//override public function set data(value:Object):void
+			//{
+			//	super.data = value;
+			//	soundModel = value as SoundModel;
+			//	soundModel.mediaPlayer = this;
+			//}
+			
+
+			protected function playSwitch(event:Event):void {
+				if(isPlaying) 
+				{
+					//do pause
+					isPaused = true;
+					isPlaying= false;
+					soundChannel.stop();
+					pausePercentage = percentTrackPlayed;
+					playButton.setStyle("icon", "assets/playButton.png");
+					progressUpdateTimer.stop(); 
+					soundModel.bypassDispatch = false;
+					soundModel.isPlaying = false;
+					CONFIG::device {
+					if (mediaServiceConnected == true) {
+						audioService.setPlayState(MediaPlayerState.PAUSED);
+					}
+					}
+				}
+				else
+				{
+					if(isPaused)
+						soundChannel = s.play(pausePercentage*(trackLength*1000));
+					else
+						playTrack(event);
+					isPlaying = true;
+					isPaused = false; 
+					progressUpdateTimer.start();
+					playButton.setStyle("icon", "assets/pauseButton.png");
+					soundModel.isPlaying = true;
+					CONFIG::device {
+					if (mediaServiceConnected == true) {
+						audioService.setPlayState(MediaPlayerState.PLAYING);
+					}
+					}
+				}
+				
+			}
+			
+			public function playTrack(event:Event):void {	
+				s = new Sound();
+				var streamUrl:String;
+				if (soundModel.currentlyPlayingItem.track == null) {
+					streamUrl = soundModel.currentlyPlayingItem.stream_url + "?client_id=0101d8067d39865dc8ce5b0a04b01f24";
+				}
+				else {
+					streamUrl = soundModel.currentlyPlayingItem.track.stream_url + "?client_id=0101d8067d39865dc8ce5b0a04b01f24";
+					waveformImage.source = soundModel.currentlyPlayingItem.track.waveform_url;
+					trackLabel.text = soundModel.currentlyPlayingItem.track.title;
+				}
+				var req:URLRequest = new URLRequest(streamUrl);
+				var context:SoundLoaderContext = new SoundLoaderContext(8000, true);
+				s.load(req, context);
+				s.addEventListener(Event.COMPLETE, trackLoaded);
+				soundChannel = s.play();
+				
+				grabComments(event);
+			}
+			
+			protected function grabComments(event:Event):void {
+				commentsBar.trackChanged();
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String = "http://api.soundcloud.com/tracks/" + soundModel.currentlyPlayingItem.id + "/comments.json?client_id=0101d8067d39865dc8ce5b0a04b01f24";
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.GET;
+				
+				//var variables:URLVariables = new URLVariables();
+				//variables.oauth_token = soundModel.userToken;
+				//urlRequest.data = variables;
+				
+				urlLoader.addEventListener(Event.COMPLETE, commentsLoaded);
+				urlLoader.load(urlRequest);
+			}
+			private function commentsLoaded(event:Event):void
+			{
+				//trace("Comments loaded");
+				var commentObject:Object = JSON.parse((event.target as URLLoader).data);
+				commentsBar.originalDataSet = commentObject as Array;
+			}
+			
+			protected function trackLoaded(event:Event):void {
+				progressUpdateTimer.start();
+				trackLength = s.length / 1000; //milliseconds trackLength is seconds here now
+			}
+			
+			protected function theTimerTicked(event:Event):void
+			{
+				trackPosition = trackPosition + 1;
+				percentTrackPlayed = trackPosition/trackLength; 
+				if(percentTrackPlayed >= 1)
+				{
+					progressUpdateTimer.stop();
+					progressWidth = 510;
+					return;
+				}
+				progressWidth = percentTrackPlayed*510;
+				if(commentsBar)
+				{
+					commentsBar.currentTime = trackPosition*1000;
+				}
+			}
+			
+			protected function group2_activateHandler(event:FlexEvent):void
+			{
+				CONFIG::device
+				{
+					globalVolume = audio.getOutputLevel();
+					BindingUtils.bindSetter(volumeSlider_dragStartHandler, volumeSlider, "value"); 
+					audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
+				}
+				
+				progressUpdateTimer.addEventListener(TimerEvent.TIMER, theTimerTicked);
+				BindingUtils.bindSetter(calledWhenModelChanges, soundModel, "currentlyPlayingItem"); 
+				this.addEventListener("PauseTrack", playSwitch);
+				//BindingUtils.bindSetter(playStateChange, soundModel, "isPlaying"); 
+				
+			}
+		
+			
+			protected function calledWhenModelChanges(value:Object):void {
+				if (soundModel.currentlyPlayingItem != null) {
+					if (isPlaying == true || isPaused == true) {
+						trackPosition = 0;
+						soundChannel.stop();
+					}
+					playTrack(null);
+					isPlaying = true; 
+					playButton.setStyle("icon", "assets/pauseButton.png");
+					
+					if (soundModel.currentlyPlayingItem.track == null) {
+						track_id = soundModel.currentlyPlayingItem.id;
+					}
+					else
+						track_id = soundModel.currentlyPlayingItem.track.id;
+					
+					var params:Object = {oauth_token:soundModel.userToken};		
+					getFavoriteTrack.send(params);
+					if (soundModel.currentlyPlayingItem.index == 0) {
+						reverseButton.enabled = false;
+					}
+					else reverseButton.enabled = true;
+					if (soundModel.currentlyPlayingItem.index == soundModel.dpLength-1) {
+						forwardButton.enabled = false;
+					}
+					else forwardButton.enabled = true;
+					CONFIG::device {
+					if (mediaServiceConnected == false) {
+						mediaConnect(null);
+						audioService.sendMetadata(metaObject);
+						audioService.setPlayState(MediaPlayerState.PLAYING);
+					}
+					else {
+						audioService.sendMetadata(metaObject); 
+						audioService.setPlayState(MediaPlayerState.PLAYING); 
+					}
+					}
+				}
+				
+			}
+			
+			protected function likeButton_clickHandler(event:MouseEvent):void
+			{
+				if(likeButton.selected) {
+					likeButton.setStyle("icon","assets/playerLikeIndicatorOn.png");
+					favoriteTrack(event);
+					if (soundModel.currentlyPlayingItem.track == null) {
+						soundModel.soundDetails.likeButtonPressed(true, soundModel.currentlyPlayingItem.id);
+					}
+					else
+						soundModel.soundDetails.likeButtonPressed(true, soundModel.currentlyPlayingItem.track.id);
+				}
+				else {
+					likeButton.setStyle("icon","assets/playerLikeIndicator.png");
+					unfavoriteTrack(event);
+					if (soundModel.currentlyPlayingItem.track == null) {
+						soundModel.soundDetails.likeButtonPressed(false, soundModel.currentlyPlayingItem.id);
+					}
+					else
+						soundModel.soundDetails.likeButtonPressed(false, soundModel.currentlyPlayingItem.track.id);
+					//soundModel.soundDetails.likeButtonPressed(false, soundModel.currentlyPlayingItem.id);
+				}
+				
+			}
+			
+			protected function commentButton_clickHandler(event:MouseEvent):void
+			{
+				if(commentButton.selected)
+					commentButton.setStyle("icon","assets/playerCommentIndicatorOn.png");
+				else
+					commentButton.setStyle("icon","assets/playerCommentIndicator.png"); 
+			
+			}
+			
+			protected function waveformImage_clickHandler(event:MouseEvent):void
+			{
+				//update width of orange rect here to position of finger..
+				var percentAlongImage:Number = waveformImage.mouseX/waveformImage.width;
+				trackPosition = percentAlongImage*trackLength;
+				soundChannel.stop();
+				soundChannel = s.play(trackPosition*1000);
+			}
+			
+			CONFIG::device
+			protected function volumeSlider_dragStartHandler(value:Object):void
+			{
+				// set actual volume to match slider (in SliderEvent handler)audio.connectedOutput
+				audio.setOutputMute(false);
+				audio.setOutputLevel(volumeSlider.value);
+			}
+			
+			CONFIG::device
+			protected function outputChanged(event:Event):void {
+				var tempVol:int = audio.getOutputLevel();
+				volumeSlider.value = audio.getOutputLevel();
+				
+			}
+			
+			protected function favoriteTrack(event:Event):void {
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String;
+				if (soundModel.currentlyPlayingItem.track == null) {
+					urlString = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlyPlayingItem.id + ".json";
+				}
+				else {
+					urlString = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlyPlayingItem.track.id + ".json";
+				}
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.PUT;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function unfavoriteTrack(event:Event):void {
+				var urlLoader:URLLoader = new URLLoader();
+				var urlString:String;
+				if (soundModel.currentlyPlayingItem.track == null) {
+					urlString = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlyPlayingItem.id + ".json";
+				}
+				else {
+					urlString = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlyPlayingItem.track.id + ".json";
+				}
+				var urlRequest:URLRequest = new URLRequest(urlString);
+				urlRequest.method = URLRequestMethod.DELETE;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.oauth_token = soundModel.userToken;
+				urlRequest.data = variables;
+				
+				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function faultSwitch(event:FaultEvent):void 
+			{
+				likeButton.setStyle("icon","assets/playerLikeIndicator.png");
+			}
+			
+			protected function getFavoriteTrack_resultHandler(event:ResultEvent):void
+			{
+				likeButton.setStyle("icon","assets/playerLikeIndicatorOn.png");
+			}
+			
+			protected function stopButton_clickHandler(event:MouseEvent):void
+			{
+				trackPosition = 0;
+				soundChannel.stop();
+				//playSwitch(null);
+				soundModel.currentlyPlayingItem = null;
+				parentDocument.dispatchEvent(new Event("StopTrack", true, false)); 
+				//soundModel.homeView.stopTrack(event);
+			}
+		
+			
+			protected function reverseButton_clickHandler(event:MouseEvent):void
+			{
+				var currentDP:ArrayCollection = soundModel.currentListDP;
+				var newIndex:int = soundModel.currentlyPlayingItem.index - 1;
+				if (newIndex == 0) 
+					reverseButton.enabled = false;
+				
+				forwardButton.enabled = true;
+			
+				if (currentDP.getItemAt(newIndex).origin)
+					soundModel.currentlyPlayingItem = currentDP.getItemAt(newIndex).origin;
+				else 
+					soundModel.currentlyPlayingItem = currentDP.getItemAt(newIndex);
+				
+				updateDetailsPlayingStatus();
+			}
+			
+			protected function forwardButton_clickHandler(event:MouseEvent):void {
+				var currentDP:ArrayCollection = soundModel.currentListDP;
+				var newIndex:int = soundModel.currentlyPlayingItem.index + 1; 
+				
+				if (newIndex == soundModel.dpLength-1)
+					forwardButton.enabled = false;
+				
+				reverseButton.enabled = true;
+				
+				if (currentDP.getItemAt(newIndex).origin)
+					soundModel.currentlyPlayingItem = currentDP.getItemAt(newIndex).origin;
+				else
+					soundModel.currentlyPlayingItem = currentDP.getItemAt(newIndex);	
+				
+				updateDetailsPlayingStatus();
+			}
+			
+			private function updateDetailsPlayingStatus():void
+			{
+				if (soundModel.currentlyPlayingItem == soundModel.currentlySelectedItem) 
+					soundModel.soundDetails.changePlayState(isPlaying);
+				else 
+					soundModel.soundDetails.changePlayState(false);
+			}
+			
+			protected function waveformImage_mouseMoveHandler(event:MouseEvent):void
+			{
+				trace("mouse move");
+				waveSelectionWidth = waveformImage.mouseX;
+			}
+			
+			protected function waveformImage_mouseDownHandler(event:MouseEvent):void
+			{
+				trace("mouse down");
+				waveformImage.addEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
+				trackLabel.addEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
+				waveformImage.addEventListener(MouseEvent.ROLL_OUT, waveformImage_rollOutHandler);
+				progressBar.visible = false;
+				progressBarDecoy.visible = true;
+			}
+			
+			protected function waveformImage_rollOutHandler(event:MouseEvent):void
+			{
+				if(event.relatedObject is Label)
+					return;
+				
+				noncreativename(event);
+				
+			}
+			protected function waveformImage_mouseUpHandler(event:MouseEvent):void
+			{
+				trace("mouse up");
+				
+				noncreativename(event);
+			}
+			
+			protected function noncreativename(event:Event):void {
+				
+				waveformImage.removeEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
+				trackLabel.removeEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
+				waveformImage.removeEventListener(MouseEvent.ROLL_OUT, waveformImage_rollOutHandler);
+				
+				var percentAlongImage:Number = waveformImage.mouseX/waveformImage.width;
+				if(!isPlaying)
+				{
+					pausePercentage = percentAlongImage;
+					trackPosition = percentAlongImage*trackLength;
+					
+					isPaused=true;
+				}
+				else
+				{
+					trackPosition = percentAlongImage*trackLength;
+					soundChannel.stop();
+					soundChannel = s.play(trackPosition*1000);
+				}
+				
+				theTimerTicked(null);
+				progressBar.visible = true;
+				progressBarDecoy.visible = false;
+			}
+			
+			public function likeButtonPressed(isSelected:Boolean, trackId:int):void {
+				if (soundModel.currentlySelectedItem.track == null) {
+					if (soundModel.currentlySelectedItem.id == trackId) {
+						if (isSelected == true) {
+							getFavoriteTrack_resultHandler(null);
+						}
+						else faultSwitch(null);
+					}
+				}
+				else {
+					if (soundModel.currentlySelectedItem.track.id == trackId) {
+						if (isSelected == true) {
+							getFavoriteTrack_resultHandler(null);
+						}
+						else faultSwitch(null);
+					}
+				}
+			}
+			
+			protected function group2_initializeHandler(event:FlexEvent):void
+			{
+				soundModel.mediaPlayer = this;
+				CONFIG::device {
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PLAY, playSwitch);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PAUSE, playSwitch);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
+					audioService.addEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
+					mediaConnect(event);
+				}
+			
+			}
+			
+			protected function mediaConnect(event:Event):void {
+				CONFIG::device {
+					audioService.connect();
+					audioService.requestAudioService();
+					var granted:Boolean = audioService.hasAudioService();
+					if (granted = true) {
+						mediaServiceConnected = true;
+					}
+					else mediaServiceConnected = false;
+				}
+			}
+			
+			protected function mediaDisconnect(event:Event):void {
+				mediaServiceConnected = false;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<s:HTTPService id="getFavoriteTrack" fault="faultSwitch(event)" method="GET"
+					   result="getFavoriteTrack_resultHandler(event)"
+					   url="https://api.soundcloud.com/me/favorites/{track_id}.json"/>
+	
+		<fx:Object id="metaObject" album="{soundModel.currentlyPlayingItem.user.username}" track="{soundModel.currentlyPlayingItem.title}"
+				   duration="{soundModel.currentlyPlayingItem.duration}" position="0"
+				   albumArtwork="{soundModel.currentlyPlayingItem.artwork_url}"/>
+	</fx:Declarations>
+	
+	
+	<s:Rect x="0" y="1" width="1024" height="100">
+		<s:fill>
+			<s:SolidColor color="0x252525"/>
+		</s:fill>
+	</s:Rect>
+	
+	<s:Group x="10" y="11" width="230" height="55">
+		<s:Button id="reverseButton" x="0" y="0" width="50" height="50"
+				  click="reverseButton_clickHandler(event)" icon="assets/reverseButton.png"
+				  skinClass="skins.mediaControlSkin"/>
+		<s:Button id="playButton" x="58" y="-2.5" width="55" height="55" click="playSwitch(event)"
+				  icon="assets/playButton.png" skinClass="skins.mediaControlSkin"/>
+		<s:Button id="stopButton" x="121.6" y="0" width="50" height="50"
+				  click="stopButton_clickHandler(event)" icon="assets/stopButton.png"
+				  skinClass="skins.mediaControlSkin"/>
+		<s:Button id="forwardButton" x="181" y="0" width="50" height="50"
+				  click="forwardButton_clickHandler(event)" icon="assets/forwardButton.png"
+				  skinClass="skins.mediaControlSkin"/>
+	</s:Group>
+	
+	<s:HSlider id="volumeSlider" x="864" y="20" width="157" height="25" liveDragging="true"
+			   maximum="100" minimum="0" showDataTip="false" stepSize="1" value="{globalVolume}"/>
+	<s:Image x="826" y="17" width="35" height="35" source="assets/volumenew.png"/>
+	
+	
+		
+	<s:Group id="waveFormGroup" x="258" y="6" width="550" height="60" mask="{waveformMask}">
+		<s:Group>
+			<s:Rect x="0" y="0" width="510" height="60" radiusX="5" radiusY="5">
+				<s:fill>
+					<s:LinearGradient rotation="90">
+						<s:GradientEntry color="0x373737" ratio="0"/>
+						<s:GradientEntry color="0x373737" ratio=".20"/>
+						<s:GradientEntry color="0x717171" ratio=".45"/>
+						<s:GradientEntry color="0x717171" ratio=".5"/> 
+						<s:GradientEntry color="0x717171" ratio=".55"/>
+						<s:GradientEntry color="0x373737" ratio=".80"/> 
+						<s:GradientEntry color="0x373737" ratio="1"/>  
+					</s:LinearGradient> 
+				</s:fill>
+			</s:Rect>
+	
+			<s:Group>
+				
+				<s:Image id="waveformImage" x="0" y="0" width="510" height="60"
+						 mouseDown="waveformImage_mouseDownHandler(event)"
+						 mouseUp="waveformImage_mouseUpHandler(event)" scaleMode="stretch"
+						 source="{soundModel.currentlyPlayingItem.waveform_url}"/>
+			</s:Group>
+	
+			<s:Rect id="progressBar" x="0" y="0" width="{progressWidth}" height="60">
+				<s:fill>
+					<s:SolidColor alpha=".5" color="0xFF5200"/>
+				</s:fill>
+			</s:Rect>
+			<s:Rect id="progressBarDecoy" visible="false" x="0" y="0" width="{waveSelectionWidth}"
+					height="60">
+				<s:fill>
+					<s:SolidColor alpha=".5" color="0xFF5200"/>
+				</s:fill>
+			</s:Rect>
+			
+			<s:Label id="trackLabel" x="66" y="22" width="368" color="#FFFFFF" maxDisplayedLines="1"
+					 mouseDown="waveformImage_mouseDownHandler(event)"
+					 mouseUp="waveformImage_mouseUpHandler(event)"
+					 text="{soundModel.currentlyPlayingItem.title}" textAlign="center"
+					 verticalAlign="middle"/>
+			
+			<s:VGroup x="510" y="-1" width="40" height="62" gap="0" paddingBottom="0" paddingLeft="0"
+					  paddingRight="0" paddingTop="0">
+				<s:ToggleButton id="likeButton" width="40" height="31"
+								click="likeButton_clickHandler(event)"
+								icon="assets/playerLikeIndicator.png"
+								skinClass="skins.mediaInfoSkin"/>
+				<s:ToggleButton id="commentButton" width="40" height="31"
+								click="commentButton_clickHandler(event)"
+								icon="assets/playerCommentIndicator.png"
+								skinClass="skins.mediaInfoSkin">
+					<!--<s:calloutLayout>
+						<s:VerticalLayout/>
+					</s:calloutLayout>
+					<s:Spacer height="15"/>
+					<s:Label fontWeight="bold" text="Feature Coming Soon!"/>
+					<s:Spacer height="15"/>-->
+				</s:ToggleButton>	
+			</s:VGroup>
+		</s:Group>
+		
+		<s:Group id="waveformMask" width="100%" height="100%">
+			<s:Rect width="100%" height="100%" radiusX="3" radiusY="3">
+				<s:fill>
+					<s:SolidColor color="black"/>
+				</s:fill>
+			</s:Rect>
+		</s:Group>
+		
+		<s:Rect id="border" left="0" right="0" top="0" bottom="0" width="69" height="20" radiusX="3"
+				radiusY="3">
+			<s:stroke>
+				<s:LinearGradientStroke rotation="90" weight="1">
+					<s:GradientEntry alpha="0.6375" color="0x000000"/>
+					<s:GradientEntry alpha="0.85" color="0x000000"/>
+				</s:LinearGradientStroke>
+			</s:stroke>
+		</s:Rect>
+	</s:Group>
+	
+    <views:CommentBar y="70" x="0" width="1024" height="20" id="commentsBar"/>
+
+			    
+			   
+</s:Group>

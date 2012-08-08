@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		xmlns:utils="utils.*"
+		xmlns:views="views.*"
+		xmlns:transitions="caurina.transitions.*"
+		xmlns:debugger="com.demonsters.debugger.*"
+		actionBarVisible="{soundModel.abVisible}" backgroundAlpha="10"
+		creationComplete="view1_creationCompleteHandler(event)" currentState="Normal"
+		initialize="view1_initializeHandler(event)" overlayControls="true" tabBarVisible="false">
+	
+	<fx:Script>
+		<![CDATA[ 
+			import air.net.URLMonitor;
+			
+			import caurina.transitions.Tweener;
+			
+			import com.demonsters.debugger.MonsterDebugger;
+			
+			import flash.utils.setTimeout;
+			
+			import model.SoundModel;
+			
+			import mx.core.UIComponent;
+			import mx.effects.SoundEffect;
+			import mx.events.FlexEvent;
+			
+			import qnx.events.QNXApplicationEvent;
+			import qnx.system.QNXApplication;
+			
+			import spark.components.supportClasses.DropDownController;
+			import spark.effects.Fade;
+			import spark.managers.PersistenceManager;
+			import spark.primitives.BitmapImage;
+			import spark.transitions.CrossFadeViewTransition;
+			
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			private var menu:Sprite;
+			private const MENU_HEIGHT:int = 50;
+			public var fadeTrans:CrossFadeViewTransition = new CrossFadeViewTransition();
+			private var hasBeenHere:Boolean = false;
+			private var returnFromProf:Boolean = false;
+			private var monitor:URLMonitor;
+			private var beenHere:Boolean = false;
+			
+			
+			
+			protected function view1_initializeHandler(event:FlexEvent):void
+			{
+				soundModel.homeView = this;
+				splitViewNavigator.addEventListener("TrackSelected", playTrack);
+				splitViewNavigator.addEventListener("PauseTrackDetails", pauseTrack);
+				this.addEventListener("StopTrack", stopTrack);
+				this.addEventListener("Logout", logout);
+		
+				CONFIG::device {
+					QNXApplication.qnxApplication.addEventListener(QNXApplicationEvent.SWIPE_DOWN, onSwipeDown);﻿﻿
+				}
+				
+				
+			}
+			
+			
+			protected function view1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//MonsterDebugger.initialize(this);
+				//MonsterDebugger.trace(this, "Hello World!");
+				monitor = new URLMonitor(new URLRequest("http://www.soundcloud.com"));
+				monitor.addEventListener(StatusEvent.STATUS, handle_status);
+				monitor.start();
+			}
+			
+			private function handle_status(event:StatusEvent):void {
+				if (monitor.available != true) {
+					(new ConnectionAlert()).open(this, false);
+					beenHere = true;
+				}
+				else {
+					if (beenHere == true) {
+						navButtonGroup.selection=tracksButton;
+						soundFeed.popToFirstView(fadeTrans);
+						if (returnFromProf == true) {
+						setTimeout(function():void{soundDetails.pushView(SoundDetails, soundModel, null, fadeTrans)},1500);
+						}
+						returnFromProf = false;
+						soundModel.soundFeed.initializeHandler(null);
+					}
+					else 
+						null;
+				}
+			}
+			
+			protected function onSwipeDown(event:QNXApplicationEvent):void { 
+				if (soundModel.abVisible == true) {
+					soundModel.abVisible = false;
+				}
+				else soundModel.abVisible = true;
+			}
+			
+			protected function playTrack(event:Event):void {
+				if (hasBeenHere == true) { 
+					//checks to see if playButton has been called on intially, to prevent double calling the play function in MediaControls. Needs work though
+					//cause when a diff track is selected, I think it is already calling the play function because of the modelChange. 
+					slideMenu.dispatchEvent(new Event("PauseTrack", false, false));
+				}
+				else {
+					//Tweener.addTween(slideMenu, {y: this.height-slideMenu.height, time: 1.0, transition: "easeOutExpo"}); 
+					Tweener.addTween(slideMenu, {y: this.height-(slideMenu.height+20), time: 1.0, transition: "easeOutExpo"});  
+				}
+				hasBeenHere = true;
+				//dispatchEvent(new Event("PlayTrack", false, false)); 
+			}
+			
+			protected function pauseTrack(event:Event):void {
+				slideMenu.dispatchEvent(new Event("PauseTrack", false, false)); 
+				//soundModel.isPlaying == false;
+			}
+			
+			public function stopTrack(event:Event):void {
+				animateDown.play(); 
+				hasBeenHere = false;
+			}
+		
+
+			protected function appNavigatorSwitch(event:Event):void
+			{
+				var navButton:String = event.target.selection.id;
+				
+				switch(navButton)
+				{
+					case "tracksButton": {
+						soundFeed.popToFirstView(fadeTrans);
+						if (returnFromProf == true) {
+							setTimeout(function():void{soundDetails.pushView(SoundDetails, soundModel, null, fadeTrans)},1500);
+						}
+						returnFromProf = false;
+						break;
+					}
+					case "profileButton": {
+						//issue comes in when i push both... yah still don't see anything...
+						returnFromProf = true;
+						soundFeed.pushView(ProfileView, soundModel, null, fadeTrans);
+						setTimeout(function():void{soundDetails.pushView(ProfileDetails, soundModel, null, fadeTrans)},1500); //Also consider using callLater
+						break;
+					}
+					case "searchButton": {
+						soundFeed.pushView(SearchView, soundModel, null, fadeTrans);
+						if (returnFromProf == true) {
+							setTimeout(function():void{soundDetails.pushView(SoundDetails, soundModel, null, fadeTrans)},1500);
+						}
+						returnFromProf = false;
+						break;
+					}
+				}	
+				
+			}
+			
+			protected function logout(event:Event):void {
+				navigator.popToFirstView();
+			}
+			
+			public function showAbout():void {
+				(new AlertMsg()).open(this, false);
+			}
+			
+			protected function tracksButton_creationCompleteHandler(event:FlexEvent):void
+			{
+				navButtonGroup.selection=tracksButton;
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="Normal"/>
+		<s:State name="ProfileState"/>
+	</s:states>
+	
+	
+	
+	<fx:Declarations>
+		<!--<s:Move target="{slideMenu}" yTo="{this.height-slideMenu.height}" id="animateUp"/>-->
+		<s:Move id="animateDown" target="{slideMenu}" yTo="{this.height}"/>
+		<s:RadioButtonGroup id="navButtonGroup" change="appNavigatorSwitch(event)"/>
+		<s:Resize widthTo="400" target="{soundFeed}" id="enlarge"/>
+		<s:Resize widthTo="600" target="{soundFeed}" id="shrink"/>
+		
+		<fx:Component className="AlertMsg">
+			<s:SkinnablePopUpContainer x="330" y="160">
+				<s:TitleWindow title="About" close="close()">
+					<s:VGroup horizontalAlign="center" paddingTop="8" paddingBottom="8" paddingLeft="8" paddingRight="8" gap="5" width="100%">
+						<s:Label text="SoundNine was brought to you by:" fontSize="18"/>
+						<s:Label text="Domisy Dev" fontSize="25"/>
+						<s:Label text="Lead Developer - Theodore Mavrakis" fontSize="20"/>
+						<s:Label text="Assisted Development - Shaun Husain" fontSize="20"/>
+						<!--<s:Label text="Web Development - Jung Oh" fontSize="20"/>-->
+						<s:Spacer height="10"/>
+						<s:Label text="Follow us on Twitter - @DomisyDev" fontSize="15"/>
+						<s:Label text="Or Like us on Facebook" fontSize="15"/>
+						<s:Label text="Support - tjmavrakis@gmail.com" fontSize="15"/>
+						<s:Spacer height="10"/>
+						<s:Label text="Version - 1.1.1 Beta" fontSize="15"/>
+						<s:Button label="OK" click="close()"/>
+					</s:VGroup>
+				</s:TitleWindow>
+			</s:SkinnablePopUpContainer>
+		</fx:Component>
+		
+		<fx:Component className="ConnectionAlert">
+			<s:SkinnablePopUpContainer x="235" y="210">
+				<s:TitleWindow title="Connection Error" textAlign="center" close="close()">
+					<s:VGroup horizontalAlign="center" paddingTop="8" paddingBottom="8" paddingLeft="8" paddingRight="8" gap="5" width="100%">
+						<s:Label text="Sound could not connect to Soundcloud!" fontSize="25"/> 
+						<s:Label text="Please check your internet connection, and then click OK below." fontSize="20"/>
+						<s:Label text="You may also have to restart the application." fontSize="20"/> 
+						<s:Button label="OK" click="close()"/>
+					</s:VGroup>
+				</s:TitleWindow>
+			</s:SkinnablePopUpContainer>
+		</fx:Component>
+	</fx:Declarations>
+	
+	
+	<s:actionContent>
+		<s:CalloutButton left="0" right="0" top="0" bottom="0" icon="assets/recordButton58.png"
+						 verticalCenter="0">
+			<s:calloutLayout>
+				<s:VerticalLayout/>
+			</s:calloutLayout>
+			<s:Spacer height="15"/>
+			<s:Label fontWeight="bold" text="Feature Coming Soon!"/>
+		</s:CalloutButton>	
+	</s:actionContent>
+	<s:navigationContent>
+		<s:Spacer width="15"/>
+		<s:Image source="@Embed('assets/soundcloud_icon_small.png')"/>
+		<s:Spacer y="35" width="46" height="0"/>
+		
+		<s:RadioButton id="tracksButton" width="65" height="65" group="{navButtonGroup}"
+					   skinClass="skins.navButtonSkin1" click="{soundModel.abVisible = false;}" creationComplete="tracksButton_creationCompleteHandler(event)"/>
+		<s:Spacer width="10" height="10"/>
+		<s:RadioButton id="profileButton" width="72" height="63" group="{navButtonGroup}" click="{soundModel.abVisible = false;}"
+					   skinClass="skins.navButtonSkin2"/>
+		<s:Spacer width="10" height="10"/>
+		<s:RadioButton id="searchButton" x="249" width="70" height="70" group="{navButtonGroup}" click="{soundModel.abVisible = false;}"
+					   skinClass="skins.navButtonSkin3"/>
+	</s:navigationContent>
+	
+	
+	<s:SplitViewNavigator id="splitViewNavigator" left="0" right="0" top="0" bottom="0"
+						  autoHideFirstViewNavigator="true">
+		<s:ViewNavigator id="soundFeed" width="600" height="100%" firstView="views.SoundFeed"
+						 firstViewData="{soundModel}"/>
+		<s:ViewNavigator id="soundDetails" width="100%" height="100%" firstView="views.SoundDetails"
+						 firstViewData="{soundModel}"/>
+		<s:layout>
+			<s:HorizontalLayout gap="0"/>
+		</s:layout>
+	</s:SplitViewNavigator>
+	<views:MediaControls id="slideMenu" y="{this.height}" width="100%" height="70"/>	
+</s:View>

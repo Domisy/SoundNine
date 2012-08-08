@@ -1,0 +1,54 @@
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark">
+	
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("spark.components.ToggleButton")]
+	</fx:Metadata>
+	
+	<!-- states -->
+	<s:states>
+		<s:State name="disabled"/>
+		<s:State name="down"/>
+		<s:State name="over"/>
+		<s:State name="up"/>
+		<s:State name="downAndSelected"/>
+		<s:State name="disabledAndSelected"/>
+		<s:State name="upAndSelected"/>
+		<s:State name="overAndSelected"/>
+		<fx:Script>
+			<![CDATA[
+				import spark.components.ToggleButton;
+			]]>
+		</fx:Script>
+	</s:states>
+	
+	
+	<s:Rect includeIn="down, over" radiusX="4" radiusY="4" top="0" right="0" bottom="0" left="0">
+		<s:fill>
+			<s:SolidColor color="1"/>
+		</s:fill>
+
+		<s:filters>
+			<s:DropShadowFilter knockout="true" blurX="5" blurY="5" 
+								alpha="0.32" distance="2" />   
+		</s:filters>
+	</s:Rect>	
+	
+	<s:Rect id="rect" alpha="1" radiusX="4" radiusY="4" top="0" right="0" bottom="0" left="0">
+		<s:fill.upAndSelected>
+			<s:SolidColor color="0x303030"/>
+		</s:fill.upAndSelected>	
+	</s:Rect>	
+	<s:BitmapImage id="iconDisplay" width="100%" height="100%"/>
+	
+	
+	<s:transitions>
+		<s:Transition>
+			<s:CrossFade target="{rect}" />
+		</s:Transition>
+	</s:transitions>
+	
+	
+
+</s:Skin>

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark" initialize="initializeHandler(event)"
+		actionBarVisible="false" tabBarVisible="false" title="Login">
+	
+	<fx:Script>
+		<![CDATA[
+			import model.SoundModel;
+			
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.LoadEvent;
+			
+			import org.osmf.events.LoaderEvent;
+			
+			import spark.components.Group;
+			import spark.managers.PersistenceManager;
+			
+			import utils.WebView;
+			
+			public var webView:WebView;
+			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var webViewContainer:UIComponent = new UIComponent();
+				webViewContainer.x = 0;
+				webViewContainer.y = 0;
+				webViewContainer.width = 1024;
+				webViewContainer.height= 600;
+				addElement(webViewContainer);
+				
+				webView = new WebView();
+				webView.x = 0;
+				webView.y = 0;
+				webView.width = 1024;
+				webView.height = 570;
+				webViewBusy.visible = true;
+				webView.addEventListener(Event.COMPLETE, webViewComplete);
+				webView.addEventListener(LocationChangeEvent.LOCATION_CHANGING, busySwitchEvent);
+				webView.source = "https://soundcloud.com/connect?scope=non-expiring&client_id=0101d8067d39865dc8ce5b0a04b01f24&response_type=code&redirect_uri=http://www.google.com&display=popup";
+				webViewContainer.addChild(webView);
+			}
+			
+			
+			
+			public function webViewComplete(event:Event):void {
+				webView.addEventListener(LocationChangeEvent.LOCATION_CHANGE, locationChange); 
+				webViewBusy.visible = false;
+				//webView.addEventListener(Event.COMPLETE, closeWebView);
+			}
+			
+			private function busySwitch():void {
+				webViewBusy.visible = true;
+			}
+			private function busySwitchEvent(event:LocationChangeEvent):void {
+				webViewBusy.visible = true;
+			}
+			
+			protected function locationChange(event:LocationChangeEvent):void {
+				webViewBusy.visible = false;
+				var location:String = event.location;
+				var urlParam:String = event.location.substr(23, 4);
+				
+				if ((location.substr(0,23)) == "https://soundcloud.com/") {
+					if (location.substr(0,31) == "https://soundcloud.com/connect/" || location.substr(0,31) == "https://soundcloud.com/connect?") {
+						null;
+					}
+					else {
+						webView.reload(); //reload the current page if user clicks his username to prevent navigating elsewhere.
+					}
+				}
+				
+				else {
+					if (urlParam == "code") {
+						youShallPass(event.location);
+					}
+					else if (urlParam == "erro") {
+						if (location == "http://www.google.com/?error=access_denied&error_description=The+end-user+denied+the+request.") {
+							webView.hideWebView();
+						}
+						else {
+							webView.hideWebView();
+							tryAgain.visible = true;
+						}
+					}
+					else
+						return;
+				}
+			}
+			
+			public function youShallPass(event:String):void {
+				webViewBusy.visible = false;
+				
+				var rawCode:String = event.substr(28, int.MAX_VALUE);
+				requestToken(rawCode);
+			}
+			
+			
+			
+			protected function requestToken(code:String):void {
+				var urlLoader:URLLoader = new URLLoader();
+				
+				var urlRequest:URLRequest = new URLRequest("https://api.soundcloud.com/oauth2/token");
+				urlRequest.method = URLRequestMethod.POST;
+				
+				var variables:URLVariables = new URLVariables();
+				variables.client_id = "0101d8067d39865dc8ce5b0a04b01f24"; 
+				variables.client_secret = "703e580bcd74bd5228eca2e6aa77f231";
+				variables.redirect_uri = "http://www.google.com";
+				//variables.redirect_uri = "http://domisy.no-ip.org/soundcloud/index.php";
+				variables.grant_type = "authorization_code";
+				variables.code = code;
+				urlRequest.data = variables;
+				
+				urlLoader.addEventListener(Event.COMPLETE, tokenRetrieved);
+				urlLoader.load(urlRequest);
+			}
+			
+			protected function tokenRetrieved(event:Event):void {
+				var object:Object = JSON.parse(event.target.data as String);
+				soundModel.userToken = object["access_token"];
+				navigator.pushView(SoundCloudHomeView);
+				//webView.removeEventListener(Event.COMPLETE, closeWebView);
+				saveUser(event);
+			}
+			
+			protected function saveUser(event:Event):void {
+				var saveManager:PersistenceManager = new PersistenceManager();
+				saveManager.setProperty("userToken", soundModel.userToken);  
+			}
+			
+			protected function initializeHandler(event:FlexEvent):void
+			{
+				var loadManager:PersistenceManager = new PersistenceManager();  
+				if(loadManager.load())  
+				{  
+					var savedToken:Object = loadManager.getProperty("userToken");  
+					if(savedToken) {
+						soundModel.userToken = String(savedToken);
+						navigator.pushView(views.SoundCloudHomeView);
+					}
+					else { 
+						loginButton.visible = true;
+						busy.visible = false;
+					}
+				}
+				//webView.addEventListener(Event.COMPLETE, closeWebView);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Image x="0" y="0" width="100%" height="100%" source="assets/loginBackground.png"/>
+	
+	<s:Button id="loginButton" x="404" y="410" width="200" height="80" visible="false" click="button1_clickHandler(event)"
+			  icon="assets/btn-connect-l.png"/>
+	<s:Label x="203" y="312" width="618" height="89" color="#FFFFFF" fontSize="30"
+			 text="Login or Register to Begin..."
+			 textAlign="center" verticalAlign="middle"/>
+	<s:Label id="tryAgain" x="259" y="514" height="33" fontSize="22" visible="false"
+			 text="Sorry, something didn't work right. Please try again..."/>
+	<s:BusyIndicator id="busy" visible="true" x="482" y="420" width="60" height="60"/>
+	<s:BusyIndicator id="webViewBusy" visible="false" x="10" y="570" width="30" height="30"/>
+</s:View>

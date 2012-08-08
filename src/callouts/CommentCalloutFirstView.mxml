@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009"
+		xmlns:s="library://ns.adobe.com/flex/spark"
+		backgroundColor="0x000000" title="Comments">    
+	<s:HGroup paddingBottom="10" 
+			  paddingLeft="10" 
+			  paddingRight="10"
+			  paddingTop="10">        
+		<s:Label id="commentLabel" color="0xffffff" text="Comments are displayed here..."/>    
+		<s:Button id="addCommentButton" label="+" width="40" height="40"/>
+	</s:HGroup>
+</s:View>
