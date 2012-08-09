@@ -104,11 +104,18 @@
 					slideMenu.dispatchEvent(new Event("PauseTrack", false, false));
 				}
 				else {
-					//Tweener.addTween(slideMenu, {y: this.height-slideMenu.height, time: 1.0, transition: "easeOutExpo"}); 
-					Tweener.addTween(slideMenu, {y: this.height-(slideMenu.height+20), time: 1.0, transition: "easeOutExpo"});  
+					Tweener.addTween(slideMenu, {y: this.height-slideMenu.height, time: 1.0, transition: "easeOutExpo"}); 
 				}
 				hasBeenHere = true;
 				//dispatchEvent(new Event("PlayTrack", false, false)); 
+			}
+			
+			public function showCommentBar(direction:Boolean):void {
+				if (direction == true) {
+					Tweener.addTween(slideMenu, {y: this.height-(slideMenu.height+25), time: 1.0, transition: "easeOutExpo"});  
+				}
+				else 
+					Tweener.addTween(slideMenu, {y: this.height-slideMenu.height, time: 1.0, transition: "easeOutExpo"});  
 			}
 			
 			protected function pauseTrack(event:Event):void {

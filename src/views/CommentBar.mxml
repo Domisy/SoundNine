@@ -76,18 +76,24 @@
 		<fx:String id="commentString"/>
 	</fx:Declarations>
 	
+	
+	
 	<s:Rect width="100%" height="100%">
 		<s:fill>
 			<s:SolidColor color="0x252525"/>
 		</s:fill>
 	</s:Rect>
-	<s:HGroup width="100%" paddingRight="10">
+	<s:HGroup width="100%" paddingRight="0">
 		<s:BitmapImage width="20" height="20"/>
-		<s:Label text="User -" color="white" fontWeight="bold"/>
-		<s:Label text="{commentString}" color="white"/>
+		<s:Label height="24" color="white" fontSize="18" fontWeight="bold" text="User -"
+				 verticalAlign="bottom"/>
+		<s:Label height="24" width="800" color="white" fontSize="18" text="{commentString}"
+				 verticalAlign="bottom" maxDisplayedLines="1"/>
 		
 		<s:Spacer width="100%"/>
 		
-		<s:Button width="20" height="20" label="+"/>
+		<s:Button height="25" label="Compose" skinClass="skins.newCommentSkin"/>
 	</s:HGroup>
+	
+	
 </s:Group>
