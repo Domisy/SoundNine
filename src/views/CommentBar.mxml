@@ -63,17 +63,24 @@
 				{
 					var nextComment:Object = queueArray.shift();
 					commentString = nextComment.body;
+					authorString = nextComment.user.username + " -";
+					profileImage = nextComment.user.avatar_url;
 					lastCommentLoadedTime = new Date().time;
 				}
 				//this one however should fire when the array is empty and either there's no value for the lastCommentTimeInPast because or the time is more than 2 seconds in the past
-				if(queueArray && queueArray.length==0 && (isNaN(lastCommentTimeInPast)||lastCommentTimeInPast>2000))
+				if(queueArray && queueArray.length==0 && (isNaN(lastCommentTimeInPast)||lastCommentTimeInPast>2000)) {
 					commentString = "";
+					authorString = "";
+					profileImage = "";
+				}
 			}
 			
 		]]>
 	</fx:Script>
 	<fx:Declarations>
 		<fx:String id="commentString"/>
+		<fx:String id="authorString"/>
+		<fx:String id="profileImage"/>
 	</fx:Declarations>
 	
 	
@@ -83,16 +90,23 @@
 			<s:SolidColor color="0x252525"/>
 		</s:fill>
 	</s:Rect>
-	<s:HGroup width="100%" paddingRight="0">
-		<s:BitmapImage width="20" height="20"/>
-		<s:Label height="24" color="white" fontSize="18" fontWeight="bold" text="User -"
+	<s:HGroup width="100%" paddingLeft="5" paddingRight="0">
+		<s:BitmapImage width="25" height="25" source="{profileImage}"/>
+		<s:Label height="24" color="white" fontSize="18" fontWeight="bold" text="{authorString}"
 				 verticalAlign="bottom"/>
 		<s:Label height="24" width="800" color="white" fontSize="18" text="{commentString}"
 				 verticalAlign="bottom" maxDisplayedLines="1"/>
 		
 		<s:Spacer width="100%"/>
 		
-		<s:Button height="25" label="Compose" skinClass="skins.newCommentSkin"/>
+		<s:CalloutButton height="25" label="Compose" skinClass="skins.newCommentSkin" verticalPosition="after">
+			<s:calloutLayout>
+				<s:VerticalLayout/>
+			</s:calloutLayout>
+			<s:Spacer height="15"/>
+			<s:Label fontWeight="bold" text="Feature Coming Soon!"/>
+			<s:Spacer height="15"/>
+		</s:CalloutButton>
 	</s:HGroup>
 	
 	

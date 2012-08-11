@@ -101,7 +101,7 @@ package renderers
 						else
 							thumbnail.source = value.origin.track.user.avatar_url;
 					}
-					else thumbnail.source = null;
+					else thumbnail.source = value.origin.user.avatar_url;
 				}
 				else thumbnail.source = value.origin.artwork_url;
 				

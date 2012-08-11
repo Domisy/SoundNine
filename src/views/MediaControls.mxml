@@ -342,6 +342,12 @@
 				soundModel.currentlyPlayingItem = null;
 				parentDocument.dispatchEvent(new Event("StopTrack", true, false)); 
 				//soundModel.homeView.stopTrack(event);
+				if (commentButton.selected == true) {
+					commentButton.selected == false;
+					commentButton.setStyle("icon","assets/playerCommentIndicator.png");
+					//soundModel.homeView.showCommentBar(false);
+				}
+				
 			}
 		
 			
