@@ -655,7 +655,7 @@ package utils  {
 		/**
 		 * When removed from the stage remove the web view
 		 * */
-		protected function removedFromStageHandler(event:Event):void {
+		public function removedFromStageHandler(event:Event):void {
 			destroySnapshot();
 			hideWebView();
 			
