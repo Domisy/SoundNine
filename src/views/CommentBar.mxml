@@ -4,6 +4,8 @@
 		creationComplete="creationCompleteHandler(event)">
 	<fx:Script>
 		<![CDATA[
+			import flash.utils.flash_proxy;
+			
 			import mx.events.FlexEvent;
 			
 			private var originalArray:Array;
@@ -62,6 +64,7 @@
 				if(queueArray && queueArray.length > 0 && (isNaN(lastCommentTimeInPast)|| lastCommentTimeInPast > 1000))
 				{
 					var nextComment:Object = queueArray.shift();
+					commentLabel.setStyle("fontStyle", "normal");
 					commentString = nextComment.body;
 					authorString = nextComment.user.username + " -";
 					profileImage = nextComment.user.avatar_url;
@@ -69,7 +72,8 @@
 				}
 				//this one however should fire when the array is empty and either there's no value for the lastCommentTimeInPast because or the time is more than 2 seconds in the past
 				if(queueArray && queueArray.length==0 && (isNaN(lastCommentTimeInPast)||lastCommentTimeInPast>2000)) {
-					commentString = "";
+					commentString = "Be the first to drop a comment here...";
+					commentLabel.setStyle("fontStyle", "italic");
 					authorString = "";
 					profileImage = "";
 				}
@@ -94,11 +98,9 @@
 		<s:BitmapImage width="25" height="25" source="{profileImage}"/>
 		<s:Label height="24" color="white" fontSize="18" fontWeight="bold" text="{authorString}"
 				 verticalAlign="bottom"/>
-		<s:Label height="24" width="800" color="white" fontSize="18" text="{commentString}"
+		<s:Label id="commentLabel" height="24" width="100%" color="white" fontSize="18" text="{commentString}"
 				 verticalAlign="bottom" maxDisplayedLines="1"/>
-		
-		<s:Spacer width="100%"/>
-		
+		<!--<s:Spacer width="100%"/>-->
 		<s:CalloutButton height="25" label="Compose" skinClass="skins.newCommentSkin" verticalPosition="after">
 			<s:calloutLayout>
 				<s:VerticalLayout/>
