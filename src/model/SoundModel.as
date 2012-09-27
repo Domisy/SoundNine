@@ -11,9 +11,11 @@ package model
 	import views.SoundCloudHomeView;
 	import views.SoundDetails;
 	import views.SoundFeed;
+	
+	import vos.IRegistrationHandler;
 
 	
-	public class SoundModel
+	public class SoundModel implements IRegistrationHandler
 	{
 		private static var instance:SoundModel = new SoundModel();
 		
@@ -51,6 +53,16 @@ package model
 			{
 				throw new Error ("We cannot create a new instance. Please use Singleton.getInstance()");
 			}
+		}
+		
+		public function unregisterHandlers():void
+		{
+			
+		}
+		
+		public function registerHandlers():void
+		{
+			
 		}
 	}
 }

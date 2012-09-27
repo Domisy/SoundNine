@@ -3,6 +3,7 @@
  * Charities must pay 1 billion dollars. 
  * License is WTFYW 2.0
  * */
+//For use in SoundNine
 
 //Added a dispose method on line 129
 

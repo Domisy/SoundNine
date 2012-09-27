@@ -84,10 +84,17 @@
 				soundModel.userInfo = null;
 				soundModel.loggedIn = false;
 				
+				soundModel.currentlySelectedItem = null;
+				soundModel.currentlyPlayingItem = null;
+				
+				soundModel.mediaPlayer.stopButton_clickHandler(null);
+				
 				var persistenceManager:PersistenceManager = new PersistenceManager();  
 				persistenceManager.clear();
 				
-				dispatchEvent(new Event("Logout", true, false)); 
+				//dispatchEvent(new Event("Logout", true, false)); 
+				soundModel.homeView.logout(null);
+				soundModel.mediaPlayer.logout();
 			}
 			
 			

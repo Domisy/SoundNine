@@ -13,6 +13,7 @@
 			
 			private var loadFromQueueTimer:Timer;
 			private var lastCommentLoadedTime:Number;
+			private var timeToShowLastComment:Number;
 			
 			
 			//this gets called if you do commentBar.originalDataSet = something
@@ -21,9 +22,10 @@
 				//I think the JSON object ends up being just an array itself either way we'll assume you pass in an array
 				originalArray = dataSet;
 			}
-			
+			//look slike we did this maybe not being called yet htough Ctrl+Shift+G to find references
 			public function trackChanged():void
 			{
+				//trace("trackChanged called");
 				queueArray = [];
 				originalArray = [];
 			}
@@ -34,12 +36,12 @@
 				{
 					for(var i:int = 0; i<originalArray.length;i++)
 					{
-						trace("Checking comment with timestamp: "+ originalArray[i].timestamp);
-						trace("Value provided: "+ value); // huh k wasn't expecting htat really you think their time values have extra precision? ms is pretty high precision
-						if(originalArray[i].timestamp < value)
+						var localtimestamp:* = originalArray[i].timestamp;
+						//okay so I think this should only put a comment into the queue if it's within the last 2 seconds and isn't already in the queue so hopefully this works
+						if(localtimestamp && localtimestamp!="null" && localtimestamp!=0 && localtimestamp < value && (localtimestamp+2000) > value)
 						{
-							queueArray.push(originalArray[i]); 
-							originalArray.splice(i,1);
+							if(queueArray.indexOf(originalArray[i]) == -1)
+								queueArray.push(originalArray[i]);
 						}
 					}
 				}
@@ -47,13 +49,18 @@
 			
 			protected function creationCompleteHandler(event:FlexEvent):void
 			{
-				loadFromQueueTimer = new Timer(1000);
+				//and we want it to run that function more often than once a second
+				//so this is 10 times a second, so at fastest a comment could be 1/10th of a second
+				//but the actual time is based on
+				loadFromQueueTimer = new Timer(200); //so is this being used? if all the comments get their time from below, then this is sorta a 
 				loadFromQueueTimer.addEventListener(TimerEvent.TIMER, loadFromQueueHandler);
 				loadFromQueueTimer.start();
 			}
-			
+			//so this stuff won't happen any faster than the timer is set for ah k.  Then i think this is good....
 			private function loadFromQueueHandler(event:TimerEvent):void
 			{
+				//Just going to put down a bunch of traces to debug easily
+				//trace("loading from queue handler called");
 				var lastCommentTimeInPast:Number;
 				
 				//The first comment hasn't been shown by this thing yet
@@ -61,15 +68,19 @@
 					lastCommentTimeInPast = new Date().time - lastCommentLoadedTime;
 				
 				//this if checks if there's an array and it has stuff to show and the time in teh past is more than a second since the last comment was shown
-				if(queueArray && queueArray.length > 0 && (isNaN(lastCommentTimeInPast)|| lastCommentTimeInPast > 1000))
+				//okay so right here we're saying wait a second, we want that to be variable
+				if(queueArray && queueArray.length > 0 && (isNaN(lastCommentTimeInPast)|| lastCommentTimeInPast > timeToShowLastComment))
 				{
+					//trace("Queue array length: " + queueArray.length)
 					var nextComment:Object = queueArray.shift();
 					commentLabel.setStyle("fontStyle", "normal");
 					commentString = nextComment.body;
 					authorString = nextComment.user.username + " -";
 					profileImage = nextComment.user.avatar_url;
-					lastCommentLoadedTime = new Date().time;
+					lastCommentLoadedTime = new Date().time;//44 characters up to the end of the word character read it and time yourself in milliseconds.. yeah im getting 2.30 so 2 is prob good okay that works about to about 45ms per chacter, we'll try that
+					timeToShowLastComment = commentString.length * 45;//needs to be in ms, how many ms per character? that is the question. experimentation? well we can read as an example
 				}
+				//just a special case down here for when it's at the last one and going back to this default message we can leave this at 2000
 				//this one however should fire when the array is empty and either there's no value for the lastCommentTimeInPast because or the time is more than 2 seconds in the past
 				if(queueArray && queueArray.length==0 && (isNaN(lastCommentTimeInPast)||lastCommentTimeInPast>2000)) {
 					commentString = "Be the first to drop a comment here...";

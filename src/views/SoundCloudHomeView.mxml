@@ -4,7 +4,7 @@
 		xmlns:utils="utils.*"
 		xmlns:views="views.*"
 		xmlns:transitions="caurina.transitions.*"
-		xmlns:debugger="com.demonsters.debugger.*"
+		xmlns:debugger="com.demonsters.debugger.*" implements="vos.IRegistrationHandler"
 		actionBarVisible="{soundModel.abVisible}" backgroundAlpha="10"
 		creationComplete="view1_creationCompleteHandler(event)" currentState="Normal"
 		initialize="view1_initializeHandler(event)" overlayControls="true" tabBarVisible="false">
@@ -21,6 +21,7 @@
 			
 			import model.SoundModel;
 			
+			import mx.core.IVisualElement;
 			import mx.core.UIComponent;
 			import mx.effects.SoundEffect;
 			import mx.events.FlexEvent;
@@ -34,6 +35,8 @@
 			import spark.primitives.BitmapImage;
 			import spark.transitions.CrossFadeViewTransition;
 			
+			import vos.IRegistrationHandler;
+			
 			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
 			private var menu:Sprite;
 			private const MENU_HEIGHT:int = 50;
@@ -44,20 +47,40 @@
 			private var beenHere:Boolean = false;
 			
 			
+			public function unregisterHandlers():void
+			{
+				splitViewNavigator.removeEventListener("TrackSelected", playTrack);
+				splitViewNavigator.removeEventListener("PauseTrackDetails", pauseTrack);
+				//this.removeEventListener("Logout", logout);
+				CONFIG::device {
+					QNXApplication.qnxApplication.removeEventListener(QNXApplicationEvent.SWIPE_DOWN, onSwipeDown);﻿﻿
+				}
+				
+				if (this.numChildren > 0) {
+					for (var i:int = 0; i<numElements; i++)
+					{
+						var currentChild:IVisualElement = getElementAt(i);
+						if(currentChild is IRegistrationHandler) {
+							(currentChild as IRegistrationHandler).unregisterHandlers();
+						}
+					}
+				}
+			}
+			
+			public function registerHandlers():void
+			{
+				//this.addEventListener("Logout", logout);
+				splitViewNavigator.addEventListener("TrackSelected", playTrack);
+				splitViewNavigator.addEventListener("PauseTrackDetails", pauseTrack);
+				CONFIG::device {
+					QNXApplication.qnxApplication.addEventListener(QNXApplicationEvent.SWIPE_DOWN, onSwipeDown);﻿﻿
+				}
+			}
 			
 			protected function view1_initializeHandler(event:FlexEvent):void
 			{
 				soundModel.homeView = this;
-				splitViewNavigator.addEventListener("TrackSelected", playTrack);
-				splitViewNavigator.addEventListener("PauseTrackDetails", pauseTrack);
-				this.addEventListener("StopTrack", stopTrack);
-				this.addEventListener("Logout", logout);
-		
-				CONFIG::device {
-					QNXApplication.qnxApplication.addEventListener(QNXApplicationEvent.SWIPE_DOWN, onSwipeDown);﻿﻿
-				}
-				
-				
+				registerHandlers();
 			}
 			
 			
@@ -101,7 +124,8 @@
 				if (hasBeenHere == true) { 
 					//checks to see if playButton has been called on intially, to prevent double calling the play function in MediaControls. Needs work though
 					//cause when a diff track is selected, I think it is already calling the play function because of the modelChange. 
-					slideMenu.dispatchEvent(new Event("PauseTrack", false, false));
+					//slideMenu.dispatchEvent(new Event("PauseTrack", false, false));
+					soundModel.mediaPlayer.playSwitch(null);
 				}
 				else {
 					Tweener.addTween(slideMenu, {y: this.height-slideMenu.height, time: 1.0, transition: "easeOutExpo"}); 
@@ -119,7 +143,8 @@
 			}
 			
 			protected function pauseTrack(event:Event):void {
-				slideMenu.dispatchEvent(new Event("PauseTrack", false, false)); 
+				//slideMenu.dispatchEvent(new Event("PauseTrack", false, false)); 
+				soundModel.mediaPlayer.playSwitch(null);
 				//soundModel.isPlaying == false;
 			}
 			
@@ -162,7 +187,8 @@
 				
 			}
 			
-			protected function logout(event:Event):void {
+			public function logout(event:Event):void {
+				unregisterHandlers();
 				navigator.popToFirstView();
 			}
 			
@@ -207,7 +233,7 @@
 						<s:Label text="Or Like us on Facebook" fontSize="15"/>
 						<s:Label text="Support - tjmavrakis@gmail.com" fontSize="15"/>
 						<s:Spacer height="10"/>
-						<s:Label text="Version - 1.1.1 Beta" fontSize="15"/>
+						<s:Label text="Version - 1.4.0 Beta" fontSize="15"/>
 						<s:Button label="OK" click="close()"/>
 					</s:VGroup>
 				</s:TitleWindow>

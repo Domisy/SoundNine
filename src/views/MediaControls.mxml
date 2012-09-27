@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
-		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:s="library://ns.adobe.com/flex/spark" implements="vos.IRegistrationHandler"
 		 add="group2_activateHandler(event)" initialize="group2_initializeHandler(event)" xmlns:views="views.*">
 	
 	<fx:Script>
@@ -10,6 +10,7 @@
 			import mx.binding.utils.BindingUtils;
 			import mx.collections.ArrayCollection;
 			import mx.core.INavigatorContent;
+			import mx.core.IVisualElement;
 			import mx.events.DragEvent;
 			import mx.events.FlexEvent;
 			import mx.events.MoveEvent;
@@ -23,16 +24,18 @@
 			import qnx.fuse.ui.slider.Slider;
 			import qnx.media.MediaServiceConnection;
 			import qnx.system.AudioManager;
-			import qnx.system.Device;
+			import qnx.system.Device;		
 			
 			import spark.components.supportClasses.DropDownController;
 			
+			import vos.IRegistrationHandler;
 			
+			private var hasStopped:Boolean = false; 
 			[Bindable] private var soundModel : SoundModel = SoundModel.getInstance();
-			public var s:Sound;
+			public var currentSound:Sound;
 			[Bindable] private var playState:String = "Play";
 			[Bindable] public var newWaveform:Image =  new Image();
-			public var trackLength:int;
+			public var trackLength:int = int.MAX_VALUE;
 			private var trackStartedTimeStamp:Date;
 			private var progressUpdateTimer:Timer = new Timer(1000);
 			public var soundChannel:SoundChannel;
@@ -55,16 +58,52 @@
 			private var audioService:MediaServiceConnection = new MediaServiceConnection();
 			
 			
+		
+			public function unregisterHandlers():void
+			{
+				CONFIG::device {
+					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PLAY, playSwitch);
+					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PAUSE, playSwitch);
+					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
+					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
+					audioService.removeEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
+					mediaConnect(event);
+					audio.removeEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
+				}			
+				if (currentSound != null)
+					currentSound.removeEventListener(Event.COMPLETE, trackLoaded);
+				
+				if (this.numChildren > 0) {
+					for (var i:int = 0; i<numElements; i++)
+					{
+						var currentChild:IVisualElement = getElementAt(i);
+						if(currentChild is IRegistrationHandler) {
+							(currentChild as IRegistrationHandler).unregisterHandlers();
+						}
+					}
+				}
+			}
 			
-			//override public function set data(value:Object):void
-			//{
-			//	super.data = value;
-			//	soundModel = value as SoundModel;
-			//	soundModel.mediaPlayer = this;
-			//}
+			public function registerHandlers():void
+			{
+				CONFIG::device {
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PLAY, playSwitch);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PAUSE, playSwitch);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
+					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
+					audioService.addEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
+					mediaConnect(event);
+					audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
+				}
+			}
 			
-
-			protected function playSwitch(event:Event):void {
+			public function logout():void 
+			{
+				unregisterHandlers();
+			}
+			
+			
+			public function playSwitch(event:Event):void {
 				if(isPlaying) 
 				{
 					//do pause
@@ -85,12 +124,11 @@
 				else
 				{
 					if(isPaused)
-						soundChannel = s.play(pausePercentage*(trackLength*1000));
+						soundChannel = currentSound.play(pausePercentage*(trackLength*1000));
 					else
-						playTrack(event);
+						playTrack();
 					isPlaying = true;
 					isPaused = false; 
-					progressUpdateTimer.start();
 					playButton.setStyle("icon", "assets/pauseButton.png");
 					soundModel.isPlaying = true;
 					CONFIG::device {
@@ -102,8 +140,10 @@
 				
 			}
 			
-			public function playTrack(event:Event):void {	
-				s = new Sound();
+			public function playTrack():void {
+				//if it's already running I don't think this causes any problems right
+				progressUpdateTimer.start(); //okay so we're starting it here and if it takes more than 1 second to load the sound then it'll hit the handler and maybe the length ends up being less than the counter
+				currentSound = new Sound();
 				var streamUrl:String;
 				if (soundModel.currentlyPlayingItem.track == null) {
 					streamUrl = soundModel.currentlyPlayingItem.stream_url + "?client_id=0101d8067d39865dc8ce5b0a04b01f24";
@@ -115,14 +155,15 @@
 				}
 				var req:URLRequest = new URLRequest(streamUrl);
 				var context:SoundLoaderContext = new SoundLoaderContext(8000, true);
-				s.load(req, context);
-				s.addEventListener(Event.COMPLETE, trackLoaded);
-				soundChannel = s.play();
+				currentSound.load(req, context);
+				currentSound.addEventListener(Event.COMPLETE, trackLoaded);
+				soundChannel = currentSound.play();
 				
-				grabComments(event);
+				grabComments();
 			}
-			
-			protected function grabComments(event:Event):void {
+			//no you want to leave the timer stopped and mark the boolean true, then where you mark it false you could start the timer
+			//thats wat i mean.
+			protected function grabComments():void {
 				commentsBar.trackChanged();
 				var urlLoader:URLLoader = new URLLoader();
 				var urlString:String = "http://api.soundcloud.com/tracks/" + soundModel.currentlyPlayingItem.id + "/comments.json?client_id=0101d8067d39865dc8ce5b0a04b01f24";
@@ -145,15 +186,25 @@
 			
 			protected function trackLoaded(event:Event):void {
 				progressUpdateTimer.start();
-				trackLength = s.length / 1000; //milliseconds trackLength is seconds here now
+				trackLength = currentSound.length / 1000; //milliseconds trackLength is seconds here now yah so we don't have this right away.. maybe set it to infinity by default
 			}
 			
 			protected function theTimerTicked(event:Event):void
 			{
+				//ah k so I think maybe this is causing a problem
+				//every time the timer ticks we add one to track position
+				//so when it gets to the end we probably want to reset this
+				//and/or when they click in the waveform it should be setting
+				//this otherwise it'll hit
 				trackPosition = trackPosition + 1;
-				percentTrackPlayed = trackPosition/trackLength; 
+				percentTrackPlayed = trackPosition/trackLength; //maybe if trackLength is somehow not loaded correctly at first or something, it does seem the bar is all orange originally
+				
+				
+				//hit the end of the track this condition again, right.
 				if(percentTrackPlayed >= 1)
 				{
+					trace("got to has stopped"); 
+					hasStopped = true; //somehow it seems this happens
 					progressUpdateTimer.stop();
 					progressWidth = 510;
 					return;
@@ -171,14 +222,12 @@
 				{
 					globalVolume = audio.getOutputLevel();
 					BindingUtils.bindSetter(volumeSlider_dragStartHandler, volumeSlider, "value"); 
-					audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
+					//audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
 				}
 				
 				progressUpdateTimer.addEventListener(TimerEvent.TIMER, theTimerTicked);
 				BindingUtils.bindSetter(calledWhenModelChanges, soundModel, "currentlyPlayingItem"); 
-				this.addEventListener("PauseTrack", playSwitch);
-				//BindingUtils.bindSetter(playStateChange, soundModel, "isPlaying"); 
-				
+				//this.addEventListener("PauseTrack", playSwitch);
 			}
 		
 			
@@ -188,7 +237,7 @@
 						trackPosition = 0;
 						soundChannel.stop();
 					}
-					playTrack(null);
+					playTrack();
 					isPlaying = true; 
 					playButton.setStyle("icon", "assets/pauseButton.png");
 					
@@ -260,15 +309,6 @@
 			
 			}
 			
-			protected function waveformImage_clickHandler(event:MouseEvent):void
-			{
-				//update width of orange rect here to position of finger..
-				var percentAlongImage:Number = waveformImage.mouseX/waveformImage.width;
-				trackPosition = percentAlongImage*trackLength;
-				soundChannel.stop();
-				soundChannel = s.play(trackPosition*1000);
-			}
-			
 			CONFIG::device
 			protected function volumeSlider_dragStartHandler(value:Object):void
 			{
@@ -334,13 +374,14 @@
 				likeButton.setStyle("icon","assets/playerLikeIndicatorOn.png");
 			}
 			
-			protected function stopButton_clickHandler(event:MouseEvent):void
+			public function stopButton_clickHandler(event:MouseEvent):void
 			{
 				trackPosition = 0;
 				soundChannel.stop();
 				//playSwitch(null);
 				soundModel.currentlyPlayingItem = null;
-				parentDocument.dispatchEvent(new Event("StopTrack", true, false)); 
+				soundModel.homeView.stopTrack(null);
+				//parentDocument.dispatchEvent(new Event("StopTrack", true, false)); 
 				//soundModel.homeView.stopTrack(event);
 				if (commentButton.selected == true) {
 					commentButton.selected == false;
@@ -414,35 +455,44 @@
 				if(event.relatedObject is Label)
 					return;
 				
-				noncreativename(event);
+				panTrackHandler(event);
 				
 			}
 			protected function waveformImage_mouseUpHandler(event:MouseEvent):void
 			{
 				trace("mouse up");
 				
-				noncreativename(event);
+				panTrackHandler(event);
 			}
 			
-			protected function noncreativename(event:Event):void {
+			
+			//So just gotta move that other crap into here and will be good  yeah would get ridof that function too to avoid further confusion, maybe rename this one too
+			//can use the refactor ah okay just wanted to see why we did that, it's cause this is called for rollout or mouse  up
+			protected function panTrackHandler(event:Event):void {
 				
 				waveformImage.removeEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
 				trackLabel.removeEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
 				waveformImage.removeEventListener(MouseEvent.ROLL_OUT, waveformImage_rollOutHandler);
 				
 				var percentAlongImage:Number = waveformImage.mouseX/waveformImage.width;
-				if(!isPlaying)
+				
+				trackPosition = percentAlongImage*trackLength;
+				//okay so this says
+				//if the track reached the end and they click up in the waveform
+				//play the track and reset the flag
+				if (hasStopped == true) {
+					playTrack();
+					hasStopped = false;
+				}
+				else if(!isPlaying) //otherwise if it's not playing store where it is paused as a new position based on where they clicked
 				{
 					pausePercentage = percentAlongImage;
-					trackPosition = percentAlongImage*trackLength;
-					
 					isPaused=true;
 				}
-				else
+				else //otherwise if it's already playing jump to the new position and start playing, I think that's all good
 				{
-					trackPosition = percentAlongImage*trackLength;
 					soundChannel.stop();
-					soundChannel = s.play(trackPosition*1000);
+					soundChannel = currentSound.play(trackPosition*1000);
 				}
 				
 				theTimerTicked(null);
@@ -472,14 +522,7 @@
 			protected function group2_initializeHandler(event:FlexEvent):void
 			{
 				soundModel.mediaPlayer = this;
-				CONFIG::device {
-					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PLAY, playSwitch);
-					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PAUSE, playSwitch);
-					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
-					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
-					audioService.addEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
-					mediaConnect(event);
-				}
+				registerHandlers();
 			
 			}
 			
@@ -496,7 +539,7 @@
 			}
 			
 			protected function mediaDisconnect(event:Event):void {
-				mediaServiceConnected = false;
+				mediaServiceConnected = false; 
 			}
 			
 		]]>
