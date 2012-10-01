@@ -26,6 +26,7 @@ package model
 		public var mediaPlayer:MediaControls;
 		public var profileDetails:ProfileDetails;
 		
+		public var hasConnection:Boolean = true;
 		public var loggedIn:Boolean = false;
 		[Bindable] public var currentlySelectedItem : Object;
 		[Bindable] public var currentlyPlayingItem : Object;

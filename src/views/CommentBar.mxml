@@ -78,7 +78,12 @@
 					authorString = nextComment.user.username + " -";
 					profileImage = nextComment.user.avatar_url;
 					lastCommentLoadedTime = new Date().time;//44 characters up to the end of the word character read it and time yourself in milliseconds.. yeah im getting 2.30 so 2 is prob good okay that works about to about 45ms per chacter, we'll try that
-					timeToShowLastComment = commentString.length * 45;//needs to be in ms, how many ms per character? that is the question. experimentation? well we can read as an example
+					var commentLengthLimited:int = 0;
+					if (commentString.length > 100)
+						commentLengthLimited = 100; //limit is 100 so that time isnt given for overflow text...
+					else
+						commentLengthLimited = commentString.length; 
+					timeToShowLastComment = commentLengthLimited * 45;//needs to be in ms, how many ms per character? that is the question. experimentation? well we can read as an example
 				}
 				//just a special case down here for when it's at the last one and going back to this default message we can leave this at 2000
 				//this one however should fire when the array is empty and either there's no value for the lastCommentTimeInPast because or the time is more than 2 seconds in the past

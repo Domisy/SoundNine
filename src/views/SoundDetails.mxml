@@ -46,7 +46,8 @@
 			
 			protected function button1_clickHandler(event:MouseEvent):void
 			{
-				if (isPlaying == false) {
+				if (soundModel.hasConnection == true) {
+					if (isPlaying == false) {
 						playButton.setStyle("icon","assets/detailsPauseButton.png");
 						dispatchEvent(new Event("TrackSelected", true, false)); 
 						soundModel.mediaPlayer.progressWidth =  0;
@@ -56,14 +57,17 @@
 						
 						soundModel.currentlyPlayingItem = soundModel.currentlySelectedItem;
 						isPlaying = true;
+					}
+					else {
+						playButton.setStyle("icon","assets/detailsPlayButton.png");
+						dispatchEvent(new Event("PauseTrackDetails", true, false)); 
+						//soundModel.isPlaying == false;
+						
+						isPlaying = false;
+					}
 				}
-				else {
-					playButton.setStyle("icon","assets/detailsPlayButton.png");
-					dispatchEvent(new Event("PauseTrackDetails", true, false)); 
-					//soundModel.isPlaying == false;
-					
-					isPlaying = false;
-				}
+				else 
+					soundModel.homeView.handle_status(null);
 				
 			}
 			
@@ -220,10 +224,11 @@
 				var urlLoader:URLLoader = new URLLoader();
 				var urlString:String = "https://api.soundcloud.com/me/followings/" + userID + ".json";
 				var urlRequest:URLRequest = new URLRequest(urlString);
-				urlRequest.method = URLRequestMethod.DELETE;
+				urlRequest.method = URLRequestMethod.POST;
 				
 				var variables:URLVariables = new URLVariables();
 				variables.oauth_token = soundModel.userToken;
+				variables._method = "DELETE";
 				urlRequest.data = variables;
 				
 				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
@@ -293,14 +298,29 @@
 				var urlLoader:URLLoader = new URLLoader();
 				var urlString:String = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlySelectedItem.id + ".json";
 				var urlRequest:URLRequest = new URLRequest(urlString);
-				urlRequest.method = URLRequestMethod.DELETE;
+				urlRequest.method = URLRequestMethod.POST;
 				
+				/* var headers:Array = [ 
+					new URLRequestHeader("X-HTTP-Method-Override", "DELETE")
+				];
+				
+				var request:URLRequest = new URLRequest(); 
+				urlRequest.requestHeaders = headers;  */
+
 				var variables:URLVariables = new URLVariables();
 				variables.oauth_token = soundModel.userToken;
+				variables._method = "DELETE";
 				urlRequest.data = variables;
 				
-				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
-				urlLoader.load(urlRequest);
+				urlLoader.addEventListener(ResultEvent.RESULT, resultUnlike);
+				urlLoader.load(urlRequest); 
+					
+			}
+			
+			protected function resultUnlike(event:ResultEvent):void
+			{
+				//event.
+				trace(event);
 			}
 			
 			protected function getFavoriteTrack_resultHandler(event:ResultEvent):void

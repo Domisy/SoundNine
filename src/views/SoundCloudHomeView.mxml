@@ -93,13 +93,27 @@
 				monitor.start();
 			}
 			
-			private function handle_status(event:StatusEvent):void {
+			public function handle_status(event:StatusEvent):void {
 				if (monitor.available != true) {
 					(new ConnectionAlert()).open(this, false);
+					soundModel.mediaPlayer.playSwitch(null);
+					soundModel.mediaPlayer.reverseButton.enabled = false; //disable for/rev buttons when connection is lost
+					soundModel.mediaPlayer.forwardButton.enabled = false;
+					soundModel.hasConnection = false;
 					beenHere = true;
 				}
 				else {
 					if (beenHere == true) {
+						soundModel.hasConnection = true;
+						if (soundModel.currentlyPlayingItem.index == 0) { //enable for/rev butttons when connection is aquired.
+							soundModel.mediaPlayer.reverseButton.enabled = false;
+						}
+						else soundModel.mediaPlayer.reverseButton.enabled = true;
+						if (soundModel.currentlyPlayingItem.index == soundModel.dpLength-1) {
+							soundModel.mediaPlayer.forwardButton.enabled = false;
+						}
+						else soundModel.mediaPlayer.forwardButton.enabled = true;
+						
 						navButtonGroup.selection=tracksButton;
 						soundFeed.popToFirstView(fadeTrans);
 						if (returnFromProf == true) {
@@ -244,7 +258,7 @@
 			<s:SkinnablePopUpContainer x="235" y="210">
 				<s:TitleWindow title="Connection Error" textAlign="center" close="close()">
 					<s:VGroup horizontalAlign="center" paddingTop="8" paddingBottom="8" paddingLeft="8" paddingRight="8" gap="5" width="100%">
-						<s:Label text="Sound could not connect to Soundcloud!" fontSize="25"/> 
+						<s:Label text="SoundNine could not connect to Soundcloud!" fontSize="25"/> 
 						<s:Label text="Please check your internet connection, and then click OK below." fontSize="20"/>
 						<s:Label text="You may also have to restart the application." fontSize="20"/> 
 						<s:Button label="OK" click="close()"/>

@@ -67,7 +67,7 @@
 					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
 					audioService.removeEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
 					audioService.removeEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
-					mediaConnect(event);
+					mediaConnect(null);
 					audio.removeEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
 				}			
 				if (currentSound != null)
@@ -92,7 +92,7 @@
 					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_NEXT, forwardButton_clickHandler);
 					audioService.addEventListener(qnx.events.MediaServiceRequestEvent.TRACK_PREV, reverseButton_clickHandler);
 					audioService.addEventListener(qnx.events.MediaServiceConnectionEvent.DISCONNECT, mediaDisconnect);
-					mediaConnect(event);
+					mediaConnect(null);
 					audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
 				}
 			}
@@ -123,8 +123,10 @@
 				}
 				else
 				{
-					if(isPaused)
+					if(isPaused) {
 						soundChannel = currentSound.play(pausePercentage*(trackLength*1000));
+						progressUpdateTimer.start();
+					}
 					else
 						playTrack();
 					isPlaying = true;
@@ -205,6 +207,7 @@
 				{
 					trace("got to has stopped"); 
 					hasStopped = true; //somehow it seems this happens
+					//possibly change the 
 					progressUpdateTimer.stop();
 					progressWidth = 510;
 					return;
@@ -221,8 +224,8 @@
 				CONFIG::device
 				{
 					globalVolume = audio.getOutputLevel();
-					BindingUtils.bindSetter(volumeSlider_dragStartHandler, volumeSlider, "value"); 
-					//audio.addEventListener(AudioManagerEvent.OUTPUT_LEVEL_CHANGED, outputChanged);
+					//BindingUtils.bindSetter(volumeSlider_dragStartHandler, volumeSlider, "value"); 
+					
 				}
 				
 				progressUpdateTimer.addEventListener(TimerEvent.TIMER, theTimerTicked);
@@ -319,9 +322,9 @@
 			
 			CONFIG::device
 			protected function outputChanged(event:Event):void {
-				var tempVol:int = audio.getOutputLevel();
-				volumeSlider.value = audio.getOutputLevel();
-				
+				if (volumeSlider.value != audio.getOutputLevel()) { 
+					volumeSlider.value = audio.getOutputLevel();
+				}
 			}
 			
 			protected function favoriteTrack(event:Event):void {
@@ -354,10 +357,11 @@
 					urlString = "https://api.soundcloud.com/me/favorites/" + soundModel.currentlyPlayingItem.track.id + ".json";
 				}
 				var urlRequest:URLRequest = new URLRequest(urlString);
-				urlRequest.method = URLRequestMethod.DELETE;
+				urlRequest.method = URLRequestMethod.POST;
 				
 				var variables:URLVariables = new URLVariables();
 				variables.oauth_token = soundModel.userToken;
+				variables._method = "DELETE";
 				urlRequest.data = variables;
 				
 				//urlLoader.addEventListener(Event.COMPLETE, updateFollow);
@@ -377,7 +381,8 @@
 			public function stopButton_clickHandler(event:MouseEvent):void
 			{
 				trackPosition = 0;
-				soundChannel.stop();
+				if (soundChannel != null)
+					soundChannel.stop();
 				//playSwitch(null);
 				soundModel.currentlyPlayingItem = null;
 				soundModel.homeView.stopTrack(null);
@@ -466,8 +471,7 @@
 			}
 			
 			
-			//So just gotta move that other crap into here and will be good  yeah would get ridof that function too to avoid further confusion, maybe rename this one too
-			//can use the refactor ah okay just wanted to see why we did that, it's cause this is called for rollout or mouse  up
+			
 			protected function panTrackHandler(event:Event):void {
 				
 				waveformImage.removeEventListener(MouseEvent.MOUSE_MOVE,waveformImage_mouseMoveHandler);
@@ -481,7 +485,16 @@
 				//if the track reached the end and they click up in the waveform
 				//play the track and reset the flag
 				if (hasStopped == true) {
-					playTrack();
+					if (!isPlaying) 
+					{
+						pausePercentage = percentAlongImage;
+						isPaused=true;
+					}
+					else {
+						soundChannel.stop();
+						soundChannel = currentSound.play(trackPosition*1000);
+						//playTrack;
+					}
 					hasStopped = false;
 				}
 				else if(!isPlaying) //otherwise if it's not playing store where it is paused as a new position based on where they clicked
@@ -501,20 +514,22 @@
 			}
 			
 			public function likeButtonPressed(isSelected:Boolean, trackId:int):void {
-				if (soundModel.currentlySelectedItem.track == null) {
-					if (soundModel.currentlySelectedItem.id == trackId) {
-						if (isSelected == true) {
-							getFavoriteTrack_resultHandler(null);
+				if (soundModel.currentlyPlayingItem != null) {
+					if (soundModel.currentlySelectedItem.track == null) {
+						if (soundModel.currentlyPlayingItem.id == trackId) {
+							if (isSelected == true) {
+								getFavoriteTrack_resultHandler(null);
+							}
+							else faultSwitch(null);
 						}
-						else faultSwitch(null);
 					}
-				}
-				else {
-					if (soundModel.currentlySelectedItem.track.id == trackId) {
-						if (isSelected == true) {
-							getFavoriteTrack_resultHandler(null);
+					else {
+						if (soundModel.currentlyPlayingItem.track.id == trackId) {
+							if (isSelected == true) {
+								getFavoriteTrack_resultHandler(null);
+							}
+							else faultSwitch(null);
 						}
-						else faultSwitch(null);
 					}
 				}
 			}
@@ -540,6 +555,12 @@
 			
 			protected function mediaDisconnect(event:Event):void {
 				mediaServiceConnected = false; 
+			}
+			
+			
+			protected function volumeSlider_changeHandler(event:Event):void
+			{
+				audio.setOutputLevel(volumeSlider.value, audio.connectedOutput);
 			}
 			
 		]]>
@@ -578,7 +599,7 @@
 	</s:Group>
 	
 	<s:HSlider id="volumeSlider" x="864" y="20" width="157" height="25" liveDragging="true"
-			   maximum="100" minimum="0" showDataTip="false" stepSize="1" value="{globalVolume}"/>
+			   maximum="100" minimum="0" showDataTip="false" stepSize="5" value="{globalVolume}" change="volumeSlider_changeHandler(event)"/>
 	<s:Image x="826" y="17" width="35" height="35" source="assets/volumenew.png"/>
 	
 	
